@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadSettings();
     
     // Check if already logged in
-    const savedSession = sessionStorage.getItem('lgt_session');
+    var savedSession = sessionStorage.getItem('lgt_session');
     if (savedSession === 'true') {
         showMainApp();
         loadDashboard();
@@ -63,15 +63,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Setup navigation
-    document.querySelectorAll('.nav-item').forEach(item => {
+    document.querySelectorAll('.nav-item').forEach(function(item) {
         item.addEventListener('click', function() {
-            const section = this.dataset.section;
+            var section = this.dataset.section;
             navigateTo(section);
         });
     });
     
     // Set today's date
-    const today = new Date().toISOString().split('T')[0];
+    var today = new Date().toISOString().split('T')[0];
     document.getElementById('addCheckIn').value = today;
     document.getElementById('addCheckOut').value = today;
     document.getElementById('quickCheckIn').value = today;
@@ -90,8 +90,8 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============================================================
 
 function handleLogin() {
-    const username = document.getElementById('loginUsername').value;
-    const password = document.getElementById('loginPassword').value;
+    var username = document.getElementById('loginUsername').value;
+    var password = document.getElementById('loginPassword').value;
     
     if (username === APP_CONFIG.DEFAULT_USERNAME && password === APP_CONFIG.DEFAULT_PASSWORD) {
         state.isLoggedIn = true;
@@ -130,15 +130,18 @@ function showMainApp() {
 // ============================================================
 
 function navigateTo(section) {
-    document.querySelectorAll('.nav-item').forEach(item => {
+    document.querySelectorAll('.nav-item').forEach(function(item) {
         item.classList.remove('active');
     });
-    document.querySelector(`.nav-item[data-section="${section}"]`)?.classList.add('active');
+    var activeItem = document.querySelector('.nav-item[data-section="' + section + '"]');
+    if (activeItem) {
+        activeItem.classList.add('active');
+    }
     
-    document.querySelectorAll('.section').forEach(s => {
+    document.querySelectorAll('.section').forEach(function(s) {
         s.classList.remove('active');
     });
-    const targetSection = document.getElementById(`section-${section}`);
+    var targetSection = document.getElementById('section-' + section);
     if (targetSection) {
         targetSection.classList.add('active');
     }
@@ -163,25 +166,28 @@ function navigateTo(section) {
 // API CALLS
 // ============================================================
 
-function callApi(action, params = {}, method = 'GET') {
-    return new Promise((resolve, reject) => {
-        const apiUrl = state.settings.webAppUrl || sessionStorage.getItem('lgt_api_url');
+function callApi(action, params, method) {
+    method = method || 'GET';
+    params = params || {};
+    
+    return new Promise(function(resolve, reject) {
+        var apiUrl = state.settings.webAppUrl || sessionStorage.getItem('lgt_api_url');
         
         if (!apiUrl) {
             reject(new Error('API URL not configured. Please set it in Settings.'));
             return;
         }
         
-        const cleanUrl = apiUrl.replace(/\/$/, '');
-        const callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        var cleanUrl = apiUrl.replace(/\/$/, '');
+        var callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         
         // Build URL
-        let url = cleanUrl + '?action=' + encodeURIComponent(action) + 
+        var url = cleanUrl + '?action=' + encodeURIComponent(action) + 
                   '&callback=' + encodeURIComponent(callbackName);
         
         // Add parameters for GET requests
         if (method === 'GET') {
-            Object.keys(params).forEach(key => {
+            Object.keys(params).forEach(function(key) {
                 if (typeof params[key] === 'object') {
                     url += '&' + key + '=' + encodeURIComponent(JSON.stringify(params[key]));
                 } else {
@@ -190,25 +196,20 @@ function callApi(action, params = {}, method = 'GET') {
             });
         }
         
-        // For POST requests, we need to send data differently
-        // Since JSONP doesn't support POST, we'll use a workaround
+        // For POST requests, use form submission
         if (method === 'POST' && (action === 'addGroup' || action === 'updateGroup' || action === 'deleteGroup')) {
-            // Use a hidden iframe or redirect for POST
-            // For simplicity, we'll use a different approach
-            // Create a form and submit it
-            const form = document.createElement('form');
+            var form = document.createElement('form');
             form.method = 'POST';
             form.action = cleanUrl;
             form.target = '_blank';
             form.style.display = 'none';
             
-            // Add payload
-            const payload = {
+            var payload = {
                 action: action,
-                ...params
+                params: params
             };
             
-            const input = document.createElement('input');
+            var input = document.createElement('input');
             input.type = 'hidden';
             input.name = 'payload';
             input.value = JSON.stringify(payload);
@@ -218,16 +219,15 @@ function callApi(action, params = {}, method = 'GET') {
             form.submit();
             document.body.removeChild(form);
             
-            // For now, just resolve with success
             resolve({ success: true, message: 'Operation submitted' });
             return;
         }
         
         // For GET requests and AI extraction, use JSONP
-        const script = document.createElement('script');
+        var script = document.createElement('script');
         script.src = url;
         
-        const timeout = setTimeout(() => {
+        var timeout = setTimeout(function() {
             cleanup();
             reject(new Error('Request timed out'));
         }, 60000);
@@ -262,112 +262,114 @@ function callApi(action, params = {}, method = 'GET') {
 // DASHBOARD
 // ============================================================
 
-async function loadDashboard() {
-    try {
-        const data = await callApi('getDashboard');
-        
-        if (data && data.success && data.data) {
-            const d = data.data;
-            
-            document.getElementById('activeGroups').textContent = d.activeGroups || 0;
-            document.getElementById('roomsToday').textContent = d.roomsToday || 0;
-            document.getElementById('revenueYTD').textContent = 'AED ' + formatCurrency(d.revenueYTD || 0);
-            document.getElementById('comingWeek').textContent = d.comingWeek || 0;
-            document.getElementById('followUpsDue').textContent = d.followUpsDue || 0;
-            document.getElementById('notificationCount').textContent = d.followUpsDue || 0;
-            
-            renderStatusChart(d.statusCounts || {});
-            renderTopAgents(d.topAgents || []);
-            renderMonthlyChart(d.monthlyData || {});
-            
-            state.dashboardData = d;
-            
-            // Update system status
-            document.getElementById('backendStatus').textContent = 'Connected ✅';
-            document.getElementById('backendStatus').parentElement.querySelector('.fa-circle').style.color = '#48BB78';
-            document.getElementById('dbStatus').textContent = 'Available ✅';
-            document.getElementById('dbStatus').parentElement.querySelector('.fa-circle').style.color = '#48BB78';
-        } else {
-            showNotification('Failed to load dashboard data', 'error');
-        }
-    } catch (error) {
-        console.error('Error loading dashboard:', error);
-        document.getElementById('backendStatus').textContent = 'Error ❌';
-        document.getElementById('backendStatus').parentElement.querySelector('.fa-circle').style.color = '#FC8181';
-        document.getElementById('dbStatus').textContent = 'Error ❌';
-        document.getElementById('dbStatus').parentElement.querySelector('.fa-circle').style.color = '#FC8181';
-    }
+function loadDashboard() {
+    callApi('getDashboard')
+        .then(function(data) {
+            if (data && data.success && data.data) {
+                var d = data.data;
+                
+                document.getElementById('activeGroups').textContent = d.activeGroups || 0;
+                document.getElementById('roomsToday').textContent = d.roomsToday || 0;
+                document.getElementById('revenueYTD').textContent = 'AED ' + formatCurrency(d.revenueYTD || 0);
+                document.getElementById('comingWeek').textContent = d.comingWeek || 0;
+                document.getElementById('followUpsDue').textContent = d.followUpsDue || 0;
+                document.getElementById('notificationCount').textContent = d.followUpsDue || 0;
+                
+                renderStatusChart(d.statusCounts || {});
+                renderTopAgents(d.topAgents || []);
+                renderMonthlyChart(d.monthlyData || {});
+                
+                state.dashboardData = d;
+                
+                // Update system status
+                document.getElementById('backendStatus').textContent = 'Connected ✅';
+                var statusCircle = document.getElementById('backendStatus').parentElement.querySelector('.fa-circle');
+                if (statusCircle) statusCircle.style.color = '#48BB78';
+                document.getElementById('dbStatus').textContent = 'Available ✅';
+                var dbCircle = document.getElementById('dbStatus').parentElement.querySelector('.fa-circle');
+                if (dbCircle) dbCircle.style.color = '#48BB78';
+            } else {
+                showNotification('Failed to load dashboard data', 'error');
+            }
+        })
+        ['catch'](function(error) {
+            console.error('Error loading dashboard:', error);
+            document.getElementById('backendStatus').textContent = 'Error ❌';
+            var statusCircle = document.getElementById('backendStatus').parentElement.querySelector('.fa-circle');
+            if (statusCircle) statusCircle.style.color = '#FC8181';
+            document.getElementById('dbStatus').textContent = 'Error ❌';
+            var dbCircle = document.getElementById('dbStatus').parentElement.querySelector('.fa-circle');
+            if (dbCircle) dbCircle.style.color = '#FC8181';
+        });
 }
 
 function renderStatusChart(statusCounts) {
-    const container = document.getElementById('statusChart');
-    const statuses = Object.keys(statusCounts);
+    var container = document.getElementById('statusChart');
+    var statuses = Object.keys(statusCounts);
     
     if (statuses.length === 0) {
         container.innerHTML = '<p class="text-muted">No data available</p>';
         return;
     }
     
-    const colors = ['#48BB78', '#F6AD55', '#FC8181', '#9F7AEA', '#63B3ED', '#4A5568'];
+    var colors = ['#48BB78', '#F6AD55', '#FC8181', '#9F7AEA', '#63B3ED', '#4A5568'];
+    var html = '<div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">';
     
-    let html = '<div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">';
-    statuses.forEach((status, index) => {
-        const color = colors[index % colors.length];
-        const count = statusCounts[status] || 0;
-        html += `
-            <div style="display:flex;flex-direction:column;align-items:center;padding:12px 20px;background:var(--background);border-radius:8px;min-width:80px;">
-                <div style="font-size:24px;font-weight:700;color:${color};">${count}</div>
-                <div style="font-size:12px;color:var(--text-secondary);">${status}</div>
-            </div>
-        `;
-    });
+    for (var i = 0; i < statuses.length; i++) {
+        var status = statuses[i];
+        var color = colors[i % colors.length];
+        var count = statusCounts[status] || 0;
+        html += '<div style="display:flex;flex-direction:column;align-items:center;padding:12px 20px;background:var(--background);border-radius:8px;min-width:80px;">';
+        html += '<div style="font-size:24px;font-weight:700;color:' + color + ';">' + count + '</div>';
+        html += '<div style="font-size:12px;color:var(--text-secondary);">' + status + '</div>';
+        html += '</div>';
+    }
     html += '</div>';
     container.innerHTML = html;
 }
 
 function renderTopAgents(agents) {
-    const container = document.getElementById('topAgentsList');
+    var container = document.getElementById('topAgentsList');
     if (!agents || agents.length === 0) {
         container.innerHTML = '<p class="text-muted">No agent data available</p>';
         return;
     }
     
-    let html = '<div class="agent-list">';
-    agents.slice(0, 5).forEach((agent, index) => {
-        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index+1}.`;
-        html += `
-            <div class="agent-item">
-                <span class="agent-name">${medal} ${agent.name}</span>
-                <span class="agent-revenue">AED ${formatCurrency(agent.revenue)}</span>
-            </div>
-        `;
-    });
+    var html = '<div class="agent-list">';
+    for (var i = 0; i < Math.min(agents.length, 5); i++) {
+        var agent = agents[i];
+        var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1) + '.';
+        html += '<div class="agent-item">';
+        html += '<span class="agent-name">' + medal + ' ' + agent.name + '</span>';
+        html += '<span class="agent-revenue">AED ' + formatCurrency(agent.revenue) + '</span>';
+        html += '</div>';
+    }
     html += '</div>';
     container.innerHTML = html;
 }
 
 function renderMonthlyChart(monthlyData) {
-    const container = document.getElementById('monthlyChart');
-    const months = Object.keys(monthlyData);
-    const revenues = Object.values(monthlyData);
+    var container = document.getElementById('monthlyChart');
+    var months = Object.keys(monthlyData);
+    var revenues = Object.values(monthlyData);
     
-    if (months.length === 0 || revenues.every(r => r === 0)) {
+    if (months.length === 0 || revenues.every(function(r) { return r === 0; })) {
         container.innerHTML = '<p class="text-muted">No monthly data available</p>';
         return;
     }
     
-    const maxRevenue = Math.max(...revenues, 1);
-    let html = '<div style="display:flex;align-items:flex-end;gap:8px;height:150px;padding:8px 0;">';
-    months.forEach((month, index) => {
-        const height = (revenues[index] / maxRevenue) * 130;
-        html += `
-            <div style="display:flex;flex-direction:column;align-items:center;flex:1;">
-                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">${formatCurrency(revenues[index])}</div>
-                <div style="width:100%;max-width:40px;height:${height}px;background:#4A90D9;border-radius:4px 4px 0 0;transition:height 0.3s;"></div>
-                <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;font-weight:600;">${month}</div>
-            </div>
-        `;
-    });
+    var maxRevenue = Math.max.apply(null, revenues);
+    if (maxRevenue === 0) maxRevenue = 1;
+    
+    var html = '<div style="display:flex;align-items:flex-end;gap:8px;height:150px;padding:8px 0;">';
+    for (var i = 0; i < months.length; i++) {
+        var height = (revenues[i] / maxRevenue) * 130;
+        html += '<div style="display:flex;flex-direction:column;align-items:center;flex:1;">';
+        html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">' + formatCurrency(revenues[i]) + '</div>';
+        html += '<div style="width:100%;max-width:40px;height:' + height + 'px;background:#4A90D9;border-radius:4px 4px 0 0;transition:height 0.3s;"></div>';
+        html += '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px;font-weight:600;">' + months[i] + '</div>';
+        html += '</div>';
+    }
     html += '</div>';
     container.innerHTML = html;
 }
@@ -376,81 +378,87 @@ function renderMonthlyChart(monthlyData) {
 // GROUPS
 // ============================================================
 
-async function loadGroups() {
-    try {
-        const data = await callApi('getGroups');
-        if (data && data.success) {
-            state.groups = data.data || [];
-            renderGroupsTable(state.groups);
-            populateFilterDropdowns();
-        } else {
-            showNotification('Failed to load groups', 'error');
-        }
-    } catch (error) {
-        console.error('Error loading groups:', error);
-        showNotification('Error loading groups: ' + error.message, 'error');
-    }
+function loadGroups() {
+    callApi('getGroups')
+        .then(function(data) {
+            if (data && data.success) {
+                state.groups = data.data || [];
+                renderGroupsTable(state.groups);
+                populateFilterDropdowns();
+            } else {
+                showNotification('Failed to load groups', 'error');
+            }
+        })
+        ['catch'](function(error) {
+            console.error('Error loading groups:', error);
+            showNotification('Error loading groups: ' + error.message, 'error');
+        });
 }
 
 function renderGroupsTable(groups) {
-    const tbody = document.getElementById('groupsTableBody');
+    var tbody = document.getElementById('groupsTableBody');
     
     if (!groups || groups.length === 0) {
         tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No groups found</td></tr>';
         return;
     }
     
-    let html = '';
-    groups.forEach(group => {
-        const statusClass = group['Status'] || 'Inquiry';
-        html += `
-            <tr>
-                <td><strong>${group['Group ID'] || 'N/A'}</strong></td>
-                <td>${group['Hotel'] || 'N/A'}</td>
-                <td>${group['Agent'] || 'N/A'}</td>
-                <td><span class="status-badge ${statusClass}">${statusClass}</span></td>
-                <td>${group['Check-In'] || 'N/A'}</td>
-                <td>${group['Check-Out'] || 'N/A'}</td>
-                <td>${group['Total Rooms'] || 0}</td>
-                <td>AED ${formatCurrency(group['Net Revenue'] || 0)}</td>
-                <td>
-                    <button onclick="viewGroup('${group['Group ID']}')" class="btn-secondary btn-sm" title="View">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button onclick="editGroup('${group['Group ID']}')" class="btn-secondary btn-sm" title="Edit">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button onclick="deleteGroup('${group['Group ID']}')" class="btn-danger btn-sm" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
-    });
+    var html = '';
+    for (var i = 0; i < groups.length; i++) {
+        var group = groups[i];
+        var statusClass = group['Status'] || 'Inquiry';
+        var groupId = group['Group ID'] || 'N/A';
+        var hotel = group['Hotel'] || 'N/A';
+        var agent = group['Agent'] || 'N/A';
+        var status = statusClass;
+        var checkIn = group['Check-In'] || 'N/A';
+        var checkOut = group['Check-Out'] || 'N/A';
+        var rooms = group['Total Rooms'] || 0;
+        var revenue = group['Net Revenue'] || 0;
+        
+        html += '<tr>';
+        html += '<td><strong>' + groupId + '</strong></td>';
+        html += '<td>' + hotel + '</td>';
+        html += '<td>' + agent + '</td>';
+        html += '<td><span class="status-badge ' + status + '">' + status + '</span></td>';
+        html += '<td>' + checkIn + '</td>';
+        html += '<td>' + checkOut + '</td>';
+        html += '<td>' + rooms + '</td>';
+        html += '<td>AED ' + formatCurrency(revenue) + '</td>';
+        html += '<td>';
+        html += '<button onclick="viewGroup(\'' + groupId + '\')" class="btn-secondary btn-sm" title="View"><i class="fas fa-eye"></i></button>';
+        html += '<button onclick="editGroup(\'' + groupId + '\')" class="btn-secondary btn-sm" title="Edit"><i class="fas fa-edit"></i></button>';
+        html += '<button onclick="deleteGroup(\'' + groupId + '\')" class="btn-danger btn-sm" title="Delete"><i class="fas fa-trash"></i></button>';
+        html += '</td>';
+        html += '</tr>';
+    }
     tbody.innerHTML = html;
 }
 
 function filterGroups() {
-    const searchTerm = document.getElementById('searchGroups').value.toLowerCase();
-    const statusFilter = document.getElementById('filterStatus').value;
-    const hotelFilter = document.getElementById('filterHotel').value;
+    var searchTerm = document.getElementById('searchGroups').value.toLowerCase();
+    var statusFilter = document.getElementById('filterStatus').value;
+    var hotelFilter = document.getElementById('filterHotel').value;
     
-    let filtered = state.groups;
+    var filtered = state.groups.slice(); // Copy array
     
     if (searchTerm) {
-        filtered = filtered.filter(g => 
-            (g['Group ID'] || '').toLowerCase().includes(searchTerm) ||
-            (g['Agent'] || '').toLowerCase().includes(searchTerm) ||
-            (g['Hotel'] || '').toLowerCase().includes(searchTerm)
-        );
+        filtered = filtered.filter(function(g) {
+            var id = g['Group ID'] || '';
+            var agent = g['Agent'] || '';
+            var hotel = g['Hotel'] || '';
+            return id.toLowerCase().includes(searchTerm) || 
+                   agent.toLowerCase().includes(searchTerm) || 
+                   hotel.toLowerCase().includes(searchTerm);
+        });
     }
     
     if (statusFilter !== 'All') {
-        filtered = filtered.filter(g => g['Status'] === statusFilter);
+        filtered = filtered.filter(function(g) { return g['Status'] === statusFilter; });
     }
     
     if (hotelFilter !== 'All') {
-        filtered = filtered.filter(g => g['Hotel'] === hotelFilter);
+        filtered = filtered.filter(function(g) { return g['Hotel'] === hotelFilter; });
     }
     
     renderGroupsTable(filtered);
@@ -462,21 +470,24 @@ function refreshGroups() {
 }
 
 function viewGroup(groupId) {
-    const group = state.groups.find(g => g['Group ID'] === groupId);
+    var group = null;
+    for (var i = 0; i < state.groups.length; i++) {
+        if (state.groups[i]['Group ID'] === groupId) {
+            group = state.groups[i];
+            break;
+        }
+    }
+    
     if (!group) {
         showNotification('Group not found', 'error');
         return;
     }
     
-    let details = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">';
-    Object.keys(group).forEach(key => {
+    var details = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">';
+    Object.keys(group).forEach(function(key) {
         if (key && group[key] && group[key] !== '') {
-            details += `
-                <div>
-                    <strong style="font-size:12px;color:var(--text-secondary);">${key}:</strong>
-                    <div style="font-size:14px;">${group[key]}</div>
-                </div>
-            `;
+            details += '<div><strong style="font-size:12px;color:var(--text-secondary);">' + key + ':</strong>';
+            details += '<div style="font-size:14px;">' + group[key] + '</div></div>';
         }
     });
     details += '</div>';
@@ -484,7 +495,13 @@ function viewGroup(groupId) {
 }
 
 function editGroup(groupId) {
-    const group = state.groups.find(g => g['Group ID'] === groupId);
+    var group = null;
+    for (var i = 0; i < state.groups.length; i++) {
+        if (state.groups[i]['Group ID'] === groupId) {
+            group = state.groups[i];
+            break;
+        }
+    }
     if (!group) return;
     
     document.getElementById('addHotel').value = group['Hotel'] || '';
@@ -511,46 +528,47 @@ function editGroup(groupId) {
     showNotification('Edit mode: Update the group details', 'info');
 }
 
-async function deleteGroup(groupId) {
-    if (!confirm(`Are you sure you want to delete group ${groupId}?`)) return;
+function deleteGroup(groupId) {
+    if (!confirm('Are you sure you want to delete group ' + groupId + '?')) return;
     
-    try {
-        const result = await callApi('deleteGroup', { groupId: groupId }, 'POST');
-        if (result && result.success) {
-            showNotification(result.message, 'success');
-            loadGroups();
-            loadDashboard();
-        } else {
-            showNotification(result?.message || 'Failed to delete group', 'error');
-        }
-    } catch (error) {
-        console.error('Error deleting group:', error);
-        showNotification('Error deleting group: ' + error.message, 'error');
-    }
+    callApi('deleteGroup', { groupId: groupId }, 'POST')
+        .then(function(result) {
+            if (result && result.success) {
+                showNotification(result.message, 'success');
+                loadGroups();
+                loadDashboard();
+            } else {
+                showNotification(result?.message || 'Failed to delete group', 'error');
+            }
+        })
+        ['catch'](function(error) {
+            console.error('Error deleting group:', error);
+            showNotification('Error deleting group: ' + error.message, 'error');
+        });
 }
 
 // ============================================================
 // ADD GROUP
 // ============================================================
 
-async function handleAddGroup() {
-    const form = document.getElementById('addGroupForm');
-    const editId = form.dataset.editId;
+function handleAddGroup() {
+    var form = document.getElementById('addGroupForm');
+    var editId = form.dataset.editId;
     
-    const checkIn = document.getElementById('addCheckIn').value;
-    const checkOut = document.getElementById('addCheckOut').value;
-    let nights = 0;
+    var checkIn = document.getElementById('addCheckIn').value;
+    var checkOut = document.getElementById('addCheckOut').value;
+    var nights = 0;
     if (checkIn && checkOut) {
-        const start = new Date(checkIn);
-        const end = new Date(checkOut);
+        var start = new Date(checkIn);
+        var end = new Date(checkOut);
         nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
     }
     
-    const paidRooms = parseInt(document.getElementById('addPaidRooms').value) || 0;
-    const focRooms = parseInt(document.getElementById('addFOCRooms').value) || 0;
-    const totalRooms = paidRooms + focRooms;
+    var paidRooms = parseInt(document.getElementById('addPaidRooms').value) || 0;
+    var focRooms = parseInt(document.getElementById('addFOCRooms').value) || 0;
+    var totalRooms = paidRooms + focRooms;
     
-    const data = {
+    var data = {
         hotel: document.getElementById('addHotel').value,
         agent: document.getElementById('addAgent').value,
         status: document.getElementById('addStatus').value,
@@ -574,48 +592,50 @@ async function handleAddGroup() {
         totalRoomNights: totalRooms * nights
     };
     
-    try {
-        let result;
-        if (editId) {
-            result = await callApi('updateGroup', { groupId: editId, data: data }, 'POST');
-        } else {
-            result = await callApi('addGroup', { data: data }, 'POST');
-        }
-        
-        if (result && result.success) {
-            showNotification(result.message, 'success');
-            form.reset();
-            form.dataset.editId = '';
-            document.querySelector('#addGroupForm button[type="submit"]').textContent = 'Save Group';
-            loadGroups();
-            loadDashboard();
-            loadAgents();
-        } else {
-            showNotification(result?.message || 'Failed to save group', 'error');
-        }
-    } catch (error) {
-        console.error('Error saving group:', error);
-        showNotification('Error saving group: ' + error.message, 'error');
+    var apiCall;
+    if (editId) {
+        apiCall = callApi('updateGroup', { groupId: editId, data: data }, 'POST');
+    } else {
+        apiCall = callApi('addGroup', { data: data }, 'POST');
     }
+    
+    apiCall
+        .then(function(result) {
+            if (result && result.success) {
+                showNotification(result.message, 'success');
+                form.reset();
+                form.dataset.editId = '';
+                document.querySelector('#addGroupForm button[type="submit"]').textContent = 'Save Group';
+                loadGroups();
+                loadDashboard();
+                loadAgents();
+            } else {
+                showNotification(result?.message || 'Failed to save group', 'error');
+            }
+        })
+        ['catch'](function(error) {
+            console.error('Error saving group:', error);
+            showNotification('Error saving group: ' + error.message, 'error');
+        });
 }
 
 // ============================================================
 // QUICK ADD
 // ============================================================
 
-async function handleQuickAdd() {
-    const checkIn = document.getElementById('quickCheckIn').value;
-    const checkOut = document.getElementById('quickCheckOut').value;
-    let nights = 0;
+function handleQuickAdd() {
+    var checkIn = document.getElementById('quickCheckIn').value;
+    var checkOut = document.getElementById('quickCheckOut').value;
+    var nights = 0;
     if (checkIn && checkOut) {
-        const start = new Date(checkIn);
-        const end = new Date(checkOut);
+        var start = new Date(checkIn);
+        var end = new Date(checkOut);
         nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
     }
     
-    const totalRooms = parseInt(document.getElementById('quickRooms').value) || 0;
+    var totalRooms = parseInt(document.getElementById('quickRooms').value) || 0;
     
-    const data = {
+    var data = {
         hotel: document.getElementById('quickHotel').value,
         agent: document.getElementById('quickAgent').value,
         status: document.getElementById('quickStatus').value,
@@ -639,30 +659,31 @@ async function handleQuickAdd() {
         totalRoomNights: totalRooms * nights
     };
     
-    try {
-        const result = await callApi('addGroup', { data: data }, 'POST');
-        if (result && result.success) {
-            showNotification(result.message, 'success');
-            document.getElementById('quickAddForm').reset();
-            loadGroups();
-            loadDashboard();
-            loadAgents();
-        } else {
-            showNotification(result?.message || 'Failed to add group', 'error');
-        }
-    } catch (error) {
-        console.error('Error adding group:', error);
-        showNotification('Error adding group: ' + error.message, 'error');
-    }
+    callApi('addGroup', { data: data }, 'POST')
+        .then(function(result) {
+            if (result && result.success) {
+                showNotification(result.message, 'success');
+                document.getElementById('quickAddForm').reset();
+                loadGroups();
+                loadDashboard();
+                loadAgents();
+            } else {
+                showNotification(result?.message || 'Failed to add group', 'error');
+            }
+        })
+        ['catch'](function(error) {
+            console.error('Error adding group:', error);
+            showNotification('Error adding group: ' + error.message, 'error');
+        });
 }
 
 // ============================================================
 // AI EXTRACTION
 // ============================================================
 
-async function extractWithAI() {
-    const text = document.getElementById('aiText').value;
-    const source = document.getElementById('aiSource').value;
+function extractWithAI() {
+    var text = document.getElementById('aiText').value;
+    var source = document.getElementById('aiSource').value;
     
     if (!text || text.trim() === '') {
         showNotification('Please paste some text to extract', 'error');
@@ -670,87 +691,67 @@ async function extractWithAI() {
     }
     
     // Check if API key is configured
-    const geminiKey = state.settings.geminiKey || sessionStorage.getItem('lgt_gemini_key');
+    var geminiKey = state.settings.geminiKey || sessionStorage.getItem('lgt_gemini_key');
     if (!geminiKey) {
         showNotification('Gemini API key not configured. Please add it in Settings.', 'error');
         return;
     }
     
-    const resultDiv = document.getElementById('aiResult');
+    var resultDiv = document.getElementById('aiResult');
     resultDiv.style.display = 'block';
     resultDiv.innerHTML = '<div class="text-center text-muted">⏳ Processing with AI... (may take 10-20 seconds)</div>';
     
-    try {
-        const result = await callApi('extractWithAI', { 
-            text: text, 
-            source: source 
-        }, 'GET');
-        
-        console.log('AI Result:', result);
-        
-        if (result && result.success && result.data) {
-            const data = result.data;
-            let html = `
-                <div style="background:#E8F0FE;padding:16px;border-radius:8px;margin-top:12px;">
-                    <h4 style="color:var(--primary);margin-bottom:12px;">✅ Extracted Data</h4>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            `;
+    callApi('extractWithAI', { text: text, source: source }, 'GET')
+        .then(function(result) {
+            console.log('AI Result:', result);
             
-            const displayFields = ['hotel', 'agent', 'checkIn', 'checkOut', 'nights', 'roomType', 'paidRooms', 'focPolicy', 'focRooms', 'rate', 'tdInclusive', 'mealPlan', 'currency', 'remarks'];
-            
-            displayFields.forEach(key => {
-                if (data[key] && data[key] !== '') {
-                    html += `
-                        <div>
-                            <strong style="font-size:12px;color:var(--text-secondary);">${key}:</strong>
-                            <div style="font-size:14px;">${data[key]}</div>
-                        </div>
-                    `;
+            if (result && result.success && result.data) {
+                var data = result.data;
+                var html = '<div style="background:#E8F0FE;padding:16px;border-radius:8px;margin-top:12px;">';
+                html += '<h4 style="color:var(--primary);margin-bottom:12px;">✅ Extracted Data</h4>';
+                html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+                
+                var displayFields = ['hotel', 'agent', 'checkIn', 'checkOut', 'nights', 'roomType', 'paidRooms', 'focPolicy', 'focRooms', 'rate', 'tdInclusive', 'mealPlan', 'currency', 'remarks'];
+                
+                for (var i = 0; i < displayFields.length; i++) {
+                    var key = displayFields[i];
+                    if (data[key] && data[key] !== '') {
+                        html += '<div><strong style="font-size:12px;color:var(--text-secondary);">' + key + ':</strong>';
+                        html += '<div style="font-size:14px;">' + data[key] + '</div></div>';
+                    }
                 }
-            });
-            
-            html += `
-                    </div>
-                    <div style="margin-top:16px;display:flex;gap:8px;">
-                        <button onclick="addExtractedGroup()" class="btn-primary btn-sm">
-                            <i class="fas fa-save"></i> Add Group
-                        </button>
-                        <button onclick="document.getElementById('aiResult').style.display='none'" class="btn-secondary btn-sm">
-                            <i class="fas fa-times"></i> Close
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            resultDiv.innerHTML = html;
-            resultDiv.dataset.extractedData = JSON.stringify(data);
-            showNotification('Data extracted successfully!', 'success');
-        } else {
-            resultDiv.innerHTML = `
-                <div style="background:#FC818120;padding:16px;border-radius:8px;margin-top:12px;color:#FC8181;">
-                    <strong>❌ ${result?.message || 'Failed to extract data'}</strong>
-                    <div style="font-size:12px;margin-top:8px;color:var(--text-secondary);">
-                        Make sure your Gemini API key is correct and the text contains booking information.
-                    </div>
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('Error extracting with AI:', error);
-        resultDiv.innerHTML = `
-            <div style="background:#FC818120;padding:16px;border-radius:8px;margin-top:12px;color:#FC8181;">
-                <strong>❌ Error: ${error.message}</strong>
-                <div style="font-size:12px;margin-top:8px;color:var(--text-secondary);">
-                    Check your internet connection and make sure the Apps Script URL is correct.
-                </div>
-            </div>
-        `;
-    }
+                
+                html += '</div>';
+                html += '<div style="margin-top:16px;display:flex;gap:8px;">';
+                html += '<button onclick="addExtractedGroup()" class="btn-primary btn-sm"><i class="fas fa-save"></i> Add Group</button>';
+                html += '<button onclick="document.getElementById(\'aiResult\').style.display=\'none\'" class="btn-secondary btn-sm"><i class="fas fa-times"></i> Close</button>';
+                html += '</div></div>';
+                
+                resultDiv.innerHTML = html;
+                resultDiv.dataset.extractedData = JSON.stringify(data);
+                showNotification('Data extracted successfully!', 'success');
+            } else {
+                resultDiv.innerHTML = '<div style="background:#FC818120;padding:16px;border-radius:8px;margin-top:12px;color:#FC8181;">';
+                resultDiv.innerHTML += '<strong>❌ ' + (result?.message || 'Failed to extract data') + '</strong>';
+                resultDiv.innerHTML += '<div style="font-size:12px;margin-top:8px;color:var(--text-secondary);">';
+                resultDiv.innerHTML += 'Make sure your Gemini API key is correct and the text contains booking information.';
+                resultDiv.innerHTML += '</div></div>';
+            }
+        })
+        ['catch'](function(error) {
+            console.error('Error extracting with AI:', error);
+            var resultDiv = document.getElementById('aiResult');
+            resultDiv.innerHTML = '<div style="background:#FC818120;padding:16px;border-radius:8px;margin-top:12px;color:#FC8181;">';
+            resultDiv.innerHTML += '<strong>❌ Error: ' + error.message + '</strong>';
+            resultDiv.innerHTML += '<div style="font-size:12px;margin-top:8px;color:var(--text-secondary);">';
+            resultDiv.innerHTML += 'Check your internet connection and make sure the Apps Script URL is correct.';
+            resultDiv.innerHTML += '</div></div>';
+        });
 }
 
 function addExtractedGroup() {
-    const resultDiv = document.getElementById('aiResult');
-    const dataStr = resultDiv.dataset.extractedData;
+    var resultDiv = document.getElementById('aiResult');
+    var dataStr = resultDiv.dataset.extractedData;
     
     if (!dataStr) {
         showNotification('No extracted data found', 'error');
@@ -758,7 +759,7 @@ function addExtractedGroup() {
     }
     
     try {
-        const data = JSON.parse(dataStr);
+        var data = JSON.parse(dataStr);
         document.getElementById('addHotel').value = data.hotel || '';
         document.getElementById('addAgent').value = data.agent || '';
         document.getElementById('addStatus').value = 'Inquiry';
@@ -791,50 +792,47 @@ function addExtractedGroup() {
 // FOLLOW-UPS
 // ============================================================
 
-async function checkFollowUps() {
-    try {
-        const result = await callApi('getFollowUps');
-        if (result && result.success) {
-            state.followUps = result.groups || [];
-            renderFollowUps(state.followUps);
-            document.getElementById('notificationCount').textContent = result.count || 0;
-        }
-    } catch (error) {
-        console.error('Error checking follow-ups:', error);
-    }
+function checkFollowUps() {
+    callApi('getFollowUps')
+        .then(function(result) {
+            if (result && result.success) {
+                state.followUps = result.groups || [];
+                renderFollowUps(state.followUps);
+                document.getElementById('notificationCount').textContent = result.count || 0;
+            }
+        })
+        ['catch'](function(error) {
+            console.error('Error checking follow-ups:', error);
+        });
 }
 
 function renderFollowUps(followUps) {
-    const container = document.getElementById('followUpsList');
+    var container = document.getElementById('followUpsList');
     
     if (!followUps || followUps.length === 0) {
-        container.innerHTML = `
-            <div class="text-center text-muted" style="padding:40px 0;">
-                <i class="fas fa-check-circle" style="font-size:48px;color:#48BB78;display:block;margin-bottom:12px;"></i>
-                <p>No follow-ups due! Great job! 🎉</p>
-            </div>
-        `;
+        container.innerHTML = '<div class="text-center text-muted" style="padding:40px 0;">';
+        container.innerHTML += '<i class="fas fa-check-circle" style="font-size:48px;color:#48BB78;display:block;margin-bottom:12px;"></i>';
+        container.innerHTML += '<p>No follow-ups due! Great job! 🎉</p></div>';
         return;
     }
     
-    let html = '';
-    followUps.forEach(group => {
-        html += `
-            <div class="follow-up-item">
-                <div class="follow-up-info">
-                    <div class="follow-up-id">${group['Group ID']} - ${group['Hotel']}</div>
-                    <div class="follow-up-details">
-                        Agent: ${group['Agent']} | Status: ${group['Status']} | Follow-up: ${group['Follow-up Date']}
-                        ${group['Remarks'] ? ' | ' + group['Remarks'] : ''}
-                    </div>
-                </div>
-                <div class="follow-up-actions">
-                    <button onclick="viewGroup('${group['Group ID']}')" class="btn-secondary btn-sm"><i class="fas fa-eye"></i></button>
-                    <button onclick="editGroup('${group['Group ID']}')" class="btn-primary btn-sm"><i class="fas fa-edit"></i> Update</button>
-                </div>
-            </div>
-        `;
-    });
+    var html = '';
+    for (var i = 0; i < followUps.length; i++) {
+        var group = followUps[i];
+        html += '<div class="follow-up-item">';
+        html += '<div class="follow-up-info">';
+        html += '<div class="follow-up-id">' + group['Group ID'] + ' - ' + group['Hotel'] + '</div>';
+        html += '<div class="follow-up-details">';
+        html += 'Agent: ' + group['Agent'] + ' | Status: ' + group['Status'] + ' | Follow-up: ' + group['Follow-up Date'];
+        if (group['Remarks']) {
+            html += ' | ' + group['Remarks'];
+        }
+        html += '</div></div>';
+        html += '<div class="follow-up-actions">';
+        html += '<button onclick="viewGroup(\'' + group['Group ID'] + '\')" class="btn-secondary btn-sm"><i class="fas fa-eye"></i></button>';
+        html += '<button onclick="editGroup(\'' + group['Group ID'] + '\')" class="btn-primary btn-sm"><i class="fas fa-edit"></i> Update</button>';
+        html += '</div></div>';
+    }
     container.innerHTML = html;
 }
 
@@ -843,7 +841,7 @@ function renderFollowUps(followUps) {
 // ============================================================
 
 function loadSettings() {
-    const saved = localStorage.getItem('lgt_settings');
+    var saved = localStorage.getItem('lgt_settings');
     if (saved) {
         try {
             state.settings = JSON.parse(saved);
@@ -856,8 +854,8 @@ function loadSettings() {
 }
 
 function saveSettings() {
-    const webAppUrl = document.getElementById('settingsWebAppUrl').value.trim();
-    const geminiKey = document.getElementById('settingsGeminiKey').value.trim();
+    var webAppUrl = document.getElementById('settingsWebAppUrl').value.trim();
+    var geminiKey = document.getElementById('settingsGeminiKey').value.trim();
     
     state.settings.webAppUrl = webAppUrl;
     state.settings.geminiKey = geminiKey;
@@ -871,32 +869,38 @@ function saveSettings() {
 }
 
 function testConnection() {
-    const status = document.getElementById('backendStatus');
+    var status = document.getElementById('backendStatus');
     status.textContent = 'Testing...';
-    status.parentElement.querySelector('.fa-circle').style.color = '#F6AD55';
+    var statusCircle = status.parentElement.querySelector('.fa-circle');
+    if (statusCircle) statusCircle.style.color = '#F6AD55';
     
     callApi('getGroups')
-        .then(result => {
+        .then(function(result) {
             if (result && result.success) {
                 status.textContent = 'Connected ✅';
-                status.parentElement.querySelector('.fa-circle').style.color = '#48BB78';
+                var circle = status.parentElement.querySelector('.fa-circle');
+                if (circle) circle.style.color = '#48BB78';
                 document.getElementById('dbStatus').textContent = 'Available ✅';
-                document.getElementById('dbStatus').parentElement.querySelector('.fa-circle').style.color = '#48BB78';
+                var dbCircle = document.getElementById('dbStatus').parentElement.querySelector('.fa-circle');
+                if (dbCircle) dbCircle.style.color = '#48BB78';
                 
                 if (state.settings.geminiKey || sessionStorage.getItem('lgt_gemini_key')) {
                     document.getElementById('aiStatus').textContent = 'Configured ✅';
-                    document.getElementById('aiStatus').parentElement.querySelector('.fa-circle').style.color = '#48BB78';
+                    var aiCircle = document.getElementById('aiStatus').parentElement.querySelector('.fa-circle');
+                    if (aiCircle) aiCircle.style.color = '#48BB78';
                 }
                 loadDashboard();
                 loadGroups();
             } else {
                 status.textContent = 'Failed ❌';
-                status.parentElement.querySelector('.fa-circle').style.color = '#FC8181';
+                var circle = status.parentElement.querySelector('.fa-circle');
+                if (circle) circle.style.color = '#FC8181';
             }
         })
-        .catch(() => {
+        ['catch'](function() {
             status.textContent = 'Error ❌';
-            status.parentElement.querySelector('.fa-circle').style.color = '#FC8181';
+            var circle = status.parentElement.querySelector('.fa-circle');
+            if (circle) circle.style.color = '#FC8181';
         });
 }
 
@@ -905,24 +909,24 @@ function testConnection() {
 // ============================================================
 
 function generateReport() {
-    const reportType = document.getElementById('reportType').value;
-    const month = document.getElementById('reportMonth').value;
-    const container = document.getElementById('reportResults');
+    var reportType = document.getElementById('reportType').value;
+    var month = document.getElementById('reportMonth').value;
+    var container = document.getElementById('reportResults');
     
     if (!state.groups || state.groups.length === 0) {
         container.innerHTML = '<p class="text-muted">No data available for reports</p>';
         return;
     }
     
-    let filteredGroups = state.groups;
+    var filteredGroups = state.groups.slice();
     if (month) {
-        filteredGroups = filteredGroups.filter(g => {
-            const createdDate = g['Created Date'];
+        filteredGroups = filteredGroups.filter(function(g) {
+            var createdDate = g['Created Date'];
             return createdDate && createdDate.startsWith(month);
         });
     }
     
-    let html = '';
+    var html = '';
     switch(reportType) {
         case 'monthly':
             html = generateMonthlyReport(filteredGroups);
@@ -943,84 +947,107 @@ function generateReport() {
 }
 
 function generateMonthlyReport(groups) {
-    const totalRevenue = groups.reduce((sum, g) => sum + (parseFloat(g['Net Revenue']) || 0), 0);
-    const totalRooms = groups.reduce((sum, g) => sum + (parseInt(g['Total Rooms']) || 0), 0);
-    const totalGroups = groups.length;
-    const confirmed = groups.filter(g => g['Status'] === 'Confirmed').length;
+    var totalRevenue = 0;
+    var totalRooms = 0;
+    var totalGroups = groups.length;
+    var confirmed = 0;
     
-    return `
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-top:12px;">
-            <div class="stat-card"><div class="stat-content"><span class="stat-label">Total Groups</span><span class="stat-value">${totalGroups}</span></div></div>
-            <div class="stat-card"><div class="stat-content"><span class="stat-label">Total Rooms</span><span class="stat-value">${totalRooms}</span></div></div>
-            <div class="stat-card"><div class="stat-content"><span class="stat-label">Confirmed</span><span class="stat-value">${confirmed}</span></div></div>
-            <div class="stat-card"><div class="stat-content"><span class="stat-label">Total Revenue</span><span class="stat-value">AED ${formatCurrency(totalRevenue)}</span></div></div>
-        </div>
-    `;
+    for (var i = 0; i < groups.length; i++) {
+        var g = groups[i];
+        totalRevenue += parseFloat(g['Net Revenue']) || 0;
+        totalRooms += parseInt(g['Total Rooms']) || 0;
+        if (g['Status'] === 'Confirmed') confirmed++;
+    }
+    
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-top:12px;">' +
+           '<div class="stat-card"><div class="stat-content"><span class="stat-label">Total Groups</span><span class="stat-value">' + totalGroups + '</span></div></div>' +
+           '<div class="stat-card"><div class="stat-content"><span class="stat-label">Total Rooms</span><span class="stat-value">' + totalRooms + '</span></div></div>' +
+           '<div class="stat-card"><div class="stat-content"><span class="stat-label">Confirmed</span><span class="stat-value">' + confirmed + '</span></div></div>' +
+           '<div class="stat-card"><div class="stat-content"><span class="stat-label">Total Revenue</span><span class="stat-value">AED ' + formatCurrency(totalRevenue) + '</span></div></div>' +
+           '</div>';
 }
 
 function generateAgentReport(groups) {
-    const agentData = {};
-    groups.forEach(g => {
-        const agent = g['Agent'] || 'Unknown';
-        if (!agentData[agent]) agentData[agent] = { groups: 0, revenue: 0, rooms: 0 };
+    var agentData = {};
+    for (var i = 0; i < groups.length; i++) {
+        var g = groups[i];
+        var agent = g['Agent'] || 'Unknown';
+        if (!agentData[agent]) {
+            agentData[agent] = { groups: 0, revenue: 0, rooms: 0 };
+        }
         agentData[agent].groups++;
         agentData[agent].revenue += parseFloat(g['Net Revenue']) || 0;
         agentData[agent].rooms += parseInt(g['Total Rooms']) || 0;
+    }
+    
+    var sorted = Object.keys(agentData).sort(function(a, b) {
+        return agentData[b].revenue - agentData[a].revenue;
     });
     
-    const sorted = Object.keys(agentData).sort((a, b) => agentData[b].revenue - agentData[a].revenue);
-    let html = '<div style="margin-top:12px;overflow-x:auto;"><table><thead><tr><th>Rank</th><th>Agent</th><th>Groups</th><th>Rooms</th><th>Revenue</th></tr></thead><tbody>';
-    sorted.forEach((agent, index) => {
-        const data = agentData[agent];
-        html += `<tr><td>${index + 1}</td><td><strong>${agent}</strong></td><td>${data.groups}</td><td>${data.rooms}</td><td>AED ${formatCurrency(data.revenue)}</td></tr>`;
-    });
+    var html = '<div style="margin-top:12px;overflow-x:auto;"><table><thead><tr><th>Rank</th><th>Agent</th><th>Groups</th><th>Rooms</th><th>Revenue</th></tr></thead><tbody>';
+    for (var i = 0; i < sorted.length; i++) {
+        var agent = sorted[i];
+        var data = agentData[agent];
+        html += '<tr><td>' + (i + 1) + '</td><td><strong>' + agent + '</strong></td><td>' + data.groups + '</td><td>' + data.rooms + '</td><td>AED ' + formatCurrency(data.revenue) + '</td></tr>';
+    }
     html += '</tbody></table></div>';
     return html;
 }
 
 function generateHotelReport(groups) {
-    const hotelData = {};
-    groups.forEach(g => {
-        const hotel = g['Hotel'] || 'Unknown';
-        if (!hotelData[hotel]) hotelData[hotel] = { groups: 0, revenue: 0, rooms: 0 };
+    var hotelData = {};
+    for (var i = 0; i < groups.length; i++) {
+        var g = groups[i];
+        var hotel = g['Hotel'] || 'Unknown';
+        if (!hotelData[hotel]) {
+            hotelData[hotel] = { groups: 0, revenue: 0, rooms: 0 };
+        }
         hotelData[hotel].groups++;
         hotelData[hotel].revenue += parseFloat(g['Net Revenue']) || 0;
         hotelData[hotel].rooms += parseInt(g['Total Rooms']) || 0;
+    }
+    
+    var sorted = Object.keys(hotelData).sort(function(a, b) {
+        return hotelData[b].revenue - hotelData[a].revenue;
     });
     
-    const sorted = Object.keys(hotelData).sort((a, b) => hotelData[b].revenue - hotelData[a].revenue);
-    let html = '<div style="margin-top:12px;overflow-x:auto;"><table><thead><tr><th>Hotel</th><th>Groups</th><th>Rooms</th><th>Revenue</th></tr></thead><tbody>';
-    sorted.forEach(hotel => {
-        const data = hotelData[hotel];
-        html += `<tr><td><strong>${hotel}</strong></td><td>${data.groups}</td><td>${data.rooms}</td><td>AED ${formatCurrency(data.revenue)}</td></tr>`;
-    });
+    var html = '<div style="margin-top:12px;overflow-x:auto;"><table><thead><tr><th>Hotel</th><th>Groups</th><th>Rooms</th><th>Revenue</th></tr></thead><tbody>';
+    for (var i = 0; i < sorted.length; i++) {
+        var hotel = sorted[i];
+        var data = hotelData[hotel];
+        html += '<tr><td><strong>' + hotel + '</strong></td><td>' + data.groups + '</td><td>' + data.rooms + '</td><td>AED ' + formatCurrency(data.revenue) + '</td></tr>';
+    }
     html += '</tbody></table></div>';
     return html;
 }
 
 function generateStatusReport(groups) {
-    const statusData = {};
-    groups.forEach(g => {
-        const status = g['Status'] || 'Unknown';
+    var statusData = {};
+    for (var i = 0; i < groups.length; i++) {
+        var g = groups[i];
+        var status = g['Status'] || 'Unknown';
         if (!statusData[status]) statusData[status] = 0;
         statusData[status]++;
-    });
+    }
     
-    const total = groups.length;
-    let html = '<div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px;">';
-    Object.keys(statusData).forEach(status => {
-        const count = statusData[status];
-        const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
-        const color = status === 'Confirmed' ? '#48BB78' : 
-                      status === 'Tentative' ? '#F6AD55' :
-                      status === 'Cancelled' ? '#FC8181' :
-                      status === 'Lost' ? '#FC8181' :
-                      status === 'Inquiry' ? '#9F7AEA' : '#63B3ED';
-        html += `<div style="text-align:center;padding:16px;background:var(--background);border-radius:8px;border-top:4px solid ${color};">
-            <div style="font-size:28px;font-weight:700;color:${color};">${count}</div>
-            <div style="font-size:14px;color:var(--text-secondary);">${status}</div>
-            <div style="font-size:12px;color:var(--text-secondary);">${percentage}%</div>
-        </div>`;
+    var total = groups.length;
+    var html = '<div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px;">';
+    
+    Object.keys(statusData).forEach(function(status) {
+        var count = statusData[status];
+        var percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+        var color = '#4A5568';
+        if (status === 'Confirmed') color = '#48BB78';
+        else if (status === 'Tentative') color = '#F6AD55';
+        else if (status === 'Cancelled' || status === 'Lost') color = '#FC8181';
+        else if (status === 'Inquiry') color = '#9F7AEA';
+        else if (status === 'Offered') color = '#63B3ED';
+        
+        html += '<div style="text-align:center;padding:16px;background:var(--background);border-radius:8px;border-top:4px solid ' + color + ';">';
+        html += '<div style="font-size:28px;font-weight:700;color:' + color + ';">' + count + '</div>';
+        html += '<div style="font-size:14px;color:var(--text-secondary);">' + status + '</div>';
+        html += '<div style="font-size:12px;color:var(--text-secondary);">' + percentage + '%</div>';
+        html += '</div>';
     });
     html += '</div>';
     return html;
@@ -1030,28 +1057,24 @@ function generateStatusReport(groups) {
 // EXPORT
 // ============================================================
 
-async function exportData() {
-    const status = document.getElementById('filterStatus').value || 'All';
-    const hotel = document.getElementById('filterHotel').value || 'All';
-    const agent = document.getElementById('searchGroups').value || '';
+function exportData() {
+    var status = document.getElementById('filterStatus').value || 'All';
+    var hotel = document.getElementById('filterHotel').value || 'All';
+    var agent = document.getElementById('searchGroups').value || '';
     
-    try {
-        const result = await callApi('exportToExcel', { 
-            status: status, 
-            hotel: hotel, 
-            agent: agent 
-        }, 'POST');
-        
-        if (result && result.success) {
-            showNotification('Export created: ' + result.sheetName, 'success');
-            showNotification('Check your Google Sheet for the exported data', 'info');
-        } else {
-            showNotification(result?.message || 'Failed to export', 'error');
-        }
-    } catch (error) {
-        console.error('Error exporting:', error);
-        showNotification('Error exporting: ' + error.message, 'error');
-    }
+    callApi('exportToExcel', { status: status, hotel: hotel, agent: agent }, 'POST')
+        .then(function(result) {
+            if (result && result.success) {
+                showNotification('Export created: ' + result.sheetName, 'success');
+                showNotification('Check your Google Sheet for the exported data', 'info');
+            } else {
+                showNotification(result?.message || 'Failed to export', 'error');
+            }
+        })
+        ['catch'](function(error) {
+            console.error('Error exporting:', error);
+            showNotification('Error exporting: ' + error.message, 'error');
+        });
 }
 
 // ============================================================
@@ -1067,7 +1090,7 @@ function formatCurrency(amount) {
 }
 
 function populateHotelDropdowns() {
-    const hotels = [
+    var hotels = [
         'Landmark Grand Hotel',
         'Landmark Summit Hotel',
         'Landmark Premier Hotel',
@@ -1076,21 +1099,21 @@ function populateHotelDropdowns() {
         'Landmark Plaza Hotel'
     ];
     
-    const selects = document.querySelectorAll('#addHotel, #quickHotel, #filterHotel');
-    selects.forEach(select => {
-        const defaultOption = select.querySelector('option[value=""]');
+    var selects = document.querySelectorAll('#addHotel, #quickHotel, #filterHotel');
+    selects.forEach(function(select) {
+        var defaultOption = select.querySelector('option[value=""]');
         select.innerHTML = '';
         if (defaultOption) {
             select.appendChild(defaultOption);
         } else {
-            const opt = document.createElement('option');
+            var opt = document.createElement('option');
             opt.value = '';
             opt.textContent = 'Select Hotel';
             select.appendChild(opt);
         }
         
-        hotels.forEach(hotel => {
-            const option = document.createElement('option');
+        hotels.forEach(function(hotel) {
+            var option = document.createElement('option');
             option.value = hotel;
             option.textContent = hotel;
             select.appendChild(option);
@@ -1099,39 +1122,46 @@ function populateHotelDropdowns() {
 }
 
 function populateFilterDropdowns() {
-    const hotels = [...new Set(state.groups.map(g => g['Hotel']).filter(Boolean))];
-    const filterHotel = document.getElementById('filterHotel');
-    const currentValue = filterHotel.value;
+    var hotels = [];
+    for (var i = 0; i < state.groups.length; i++) {
+        var hotel = state.groups[i]['Hotel'];
+        if (hotel && hotels.indexOf(hotel) === -1) {
+            hotels.push(hotel);
+        }
+    }
     
-    // Only update if we have hotels
+    var filterHotel = document.getElementById('filterHotel');
+    var currentValue = filterHotel.value;
+    
     if (hotels.length > 0) {
         filterHotel.innerHTML = '<option value="All">All Hotels</option>';
-        hotels.forEach(hotel => {
-            const option = document.createElement('option');
-            option.value = hotel;
-            option.textContent = hotel;
+        for (var i = 0; i < hotels.length; i++) {
+            var option = document.createElement('option');
+            option.value = hotels[i];
+            option.textContent = hotels[i];
             filterHotel.appendChild(option);
-        });
+        }
         filterHotel.value = currentValue || 'All';
     }
 }
 
-async function loadAgents() {
-    try {
-        const result = await callApi('getAgents');
-        if (result && result.success) {
-            const agents = result.data || [];
-            const datalist = document.getElementById('agentList');
-            datalist.innerHTML = '';
-            agents.forEach(agent => {
-                const option = document.createElement('option');
-                option.value = agent;
-                datalist.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading agents:', error);
-    }
+function loadAgents() {
+    callApi('getAgents')
+        .then(function(result) {
+            if (result && result.success) {
+                var agents = result.data || [];
+                var datalist = document.getElementById('agentList');
+                datalist.innerHTML = '';
+                for (var i = 0; i < agents.length; i++) {
+                    var option = document.createElement('option');
+                    option.value = agents[i];
+                    datalist.appendChild(option);
+                }
+            }
+        })
+        ['catch'](function(error) {
+            console.error('Error loading agents:', error);
+        });
 }
 
 // ============================================================
@@ -1158,54 +1188,36 @@ document.getElementById('modal')?.addEventListener('click', function(e) {
 // NOTIFICATIONS
 // ============================================================
 
-function showNotification(message, type = 'info') {
-    const existing = document.querySelector('.notification-toast');
+function showNotification(message, type) {
+    type = type || 'info';
+    var existing = document.querySelector('.notification-toast');
     if (existing) existing.remove();
     
-    const toast = document.createElement('div');
+    var toast = document.createElement('div');
     toast.className = 'notification-toast';
     
-    const colors = {
+    var colors = {
         success: '#48BB78',
         error: '#FC8181',
         info: '#63B3ED',
         warning: '#F6AD55'
     };
     
-    const icons = {
+    var icons = {
         success: 'fa-check-circle',
         error: 'fa-exclamation-circle',
         info: 'fa-info-circle',
         warning: 'fa-exclamation-triangle'
     };
     
-    toast.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 24px;
-        background: var(--surface);
-        border-left: 4px solid ${colors[type] || colors.info};
-        padding: 16px 20px;
-        border-radius: var(--radius-sm);
-        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-        z-index: 2000;
-        max-width: 400px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        animation: slideInRight 0.3s ease;
-        font-size: 14px;
-        border: 1px solid var(--border);
-    `;
+    toast.style.cssText = 'position: fixed; top: 80px; right: 24px; background: var(--surface); border-left: 4px solid ' + (colors[type] || colors.info) + '; padding: 16px 20px; border-radius: var(--radius-sm); box-shadow: 0 8px 30px rgba(0,0,0,0.15); z-index: 2000; max-width: 400px; display: flex; align-items: center; gap: 12px; animation: slideInRight 0.3s ease; font-size: 14px; border: 1px solid var(--border);';
     
-    toast.innerHTML = `
-        <i class="fas ${icons[type] || icons.info}" style="color:${colors[type] || colors.info};font-size:20px;"></i>
-        <span>${message}</span>
-        <button onclick="this.parentElement.remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-secondary);">×</button>
-    `;
+    toast.innerHTML = '<i class="fas ' + (icons[type] || icons.info) + '" style="color:' + (colors[type] || colors.info) + ';font-size:20px;"></i>';
+    toast.innerHTML += '<span>' + message + '</span>';
+    toast.innerHTML += '<button onclick="this.parentElement.remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-secondary);">×</button>';
     
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 5000);
+    setTimeout(function() { toast.remove(); }, 5000);
 }
 
 // ============================================================
@@ -1215,8 +1227,8 @@ function showNotification(message, type = 'info') {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeModal();
     if (e.ctrlKey && e.key >= '1' && e.key <= '7') {
-        const sections = ['dashboard', 'groups', 'addGroup', 'quickAdd', 'aiExtract', 'followUps', 'reports', 'settings'];
-        const index = parseInt(e.key) - 1;
+        var sections = ['dashboard', 'groups', 'addGroup', 'quickAdd', 'aiExtract', 'followUps', 'reports', 'settings'];
+        var index = parseInt(e.key) - 1;
         if (index < sections.length) {
             e.preventDefault();
             navigateTo(sections[index]);
@@ -1225,19 +1237,8 @@ document.addEventListener('keydown', function(e) {
 });
 
 // Add animation styles
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideInRight {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-`;
+var style = document.createElement('style');
+style.textContent = '@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }';
 document.head.appendChild(style);
 
 console.log('✦ Landmark Groups Tracker loaded successfully!');
