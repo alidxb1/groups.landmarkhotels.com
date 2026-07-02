@@ -107,28 +107,23 @@ function callApi(action, params = {}, method = 'GET') {
         
         const cleanUrl = apiUrl.replace(/\/$/, '');
         
-        if (method === 'GET') {
-            // Use JSONP for GET requests
+        // FOR AI EXTRACTION - Always use GET with JSONP
+        if (action === 'extractWithAI') {
+            // Use JSONP for AI extraction
             const script = document.createElement('script');
             const callbackName = 'jsonp_callback_' + Date.now();
             
             // Build URL with parameters
-            let url = cleanUrl + '?action=' + encodeURIComponent(action) + '&callback=' + callbackName;
-            
-            // Add additional parameters
-            Object.keys(params).forEach(key => {
-                if (typeof params[key] === 'object') {
-                    url += '&' + key + '=' + encodeURIComponent(JSON.stringify(params[key]));
-                } else {
-                    url += '&' + key + '=' + encodeURIComponent(params[key]);
-                }
-            });
+            let url = cleanUrl + '?action=' + encodeURIComponent(action) + 
+                      '&callback=' + callbackName +
+                      '&text=' + encodeURIComponent(params.text || '') +
+                      '&source=' + encodeURIComponent(params.source || 'Email');
             
             // Set timeout
             const timeout = setTimeout(() => {
                 cleanup();
                 reject(new Error('Request timed out'));
-            }, 30000);
+            }, 60000); // Longer timeout for AI (60 seconds)
             
             // Cleanup function
             function cleanup() {
@@ -154,9 +149,12 @@ function callApi(action, params = {}, method = 'GET') {
             // Add script to page
             script.src = url;
             document.head.appendChild(script);
-            
-        } else {
-            // Use fetch for POST requests
+            return;
+        }
+        
+        // FOR ADD/UPDATE/DELETE - Try POST first, fallback to GET with JSONP
+        if (action === 'addGroup' || action === 'updateGroup' || action === 'deleteGroup' || action === 'exportToExcel') {
+            // Try POST first
             fetch(cleanUrl, {
                 method: 'POST',
                 headers: {
@@ -167,13 +165,114 @@ function callApi(action, params = {}, method = 'GET') {
                     ...params
                 })
             })
-            .then(response => response.json())
-            .then(data => resolve(data))
-            .catch(error => reject(error));
+            .then(response => response.text())
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    resolve(data);
+                } catch (e) {
+                    // If POST fails, try GET with JSONP
+                    useJSONP();
+                }
+            })
+            .catch(() => {
+                // If POST fails, try GET with JSONP
+                useJSONP();
+            });
+            
+            function useJSONP() {
+                const script = document.createElement('script');
+                const callbackName = 'jsonp_callback_' + Date.now();
+                
+                let url = cleanUrl + '?action=' + encodeURIComponent(action) + 
+                          '&callback=' + callbackName;
+                
+                // Add parameters
+                Object.keys(params).forEach(key => {
+                    if (typeof params[key] === 'object') {
+                        url += '&' + key + '=' + encodeURIComponent(JSON.stringify(params[key]));
+                    } else {
+                        url += '&' + key + '=' + encodeURIComponent(params[key]);
+                    }
+                });
+                
+                const timeout = setTimeout(() => {
+                    cleanup();
+                    reject(new Error('Request timed out'));
+                }, 30000);
+                
+                function cleanup() {
+                    if (script.parentNode) {
+                        script.parentNode.removeChild(script);
+                    }
+                    delete window[callbackName];
+                    clearTimeout(timeout);
+                }
+                
+                window[callbackName] = function(response) {
+                    cleanup();
+                    resolve(response);
+                };
+                
+                script.onerror = function() {
+                    cleanup();
+                    reject(new Error('Failed to load script'));
+                };
+                
+                script.src = url;
+                document.head.appendChild(script);
+            }
+            return;
         }
+        
+        // FOR GET REQUESTS (Dashboard, Groups, etc.) - Use JSONP
+        const script = document.createElement('script');
+        const callbackName = 'jsonp_callback_' + Date.now();
+        
+        // Build URL with parameters
+        let url = cleanUrl + '?action=' + encodeURIComponent(action) + '&callback=' + callbackName;
+        
+        // Add additional parameters
+        Object.keys(params).forEach(key => {
+            if (typeof params[key] === 'object') {
+                url += '&' + key + '=' + encodeURIComponent(JSON.stringify(params[key]));
+            } else {
+                url += '&' + key + '=' + encodeURIComponent(params[key]);
+            }
+        });
+        
+        // Set timeout
+        const timeout = setTimeout(() => {
+            cleanup();
+            reject(new Error('Request timed out'));
+        }, 30000);
+        
+        // Cleanup function
+        function cleanup() {
+            if (script.parentNode) {
+                script.parentNode.removeChild(script);
+            }
+            delete window[callbackName];
+            clearTimeout(timeout);
+        }
+        
+        // Define callback
+        window[callbackName] = function(response) {
+            cleanup();
+            resolve(response);
+        };
+        
+        // Handle error
+        script.onerror = function() {
+            cleanup();
+            reject(new Error('Failed to load script'));
+        };
+        
+        // Add script to page
+        script.src = url;
+        document.head.appendChild(script);
     });
 }
-
 // ============================================================
 // DASHBOARD
 // ============================================================
