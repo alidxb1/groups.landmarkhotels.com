@@ -888,20 +888,28 @@ async function extractWithAI() {
     
     const resultDiv = document.getElementById('aiResult');
     resultDiv.style.display = 'block';
-    resultDiv.innerHTML = '<div class="text-center text-muted">⏳ Processing with AI...</div>';
+    resultDiv.innerHTML = '<div class="text-center text-muted">⏳ Processing with AI... (may take 10-20 seconds)</div>';
     
     try {
-        const result = await callApi('extractWithAI', { text: text, source: source }, 'POST');
+        // Call the API with GET method (using JSONP)
+        const result = await callApi('extractWithAI', { 
+            text: text, 
+            source: source 
+        }, 'GET'); // <-- Make sure this is GET
+        
+        console.log('AI Result:', result);
         
         if (result && result.success && result.data) {
             const data = result.data;
             let html = `
-                <div style="background:var(--background);padding:16px;border-radius:8px;margin-top:12px;">
+                <div style="background:#E8F0FE;padding:16px;border-radius:8px;margin-top:12px;">
                     <h4 style="color:var(--primary);margin-bottom:12px;">✅ Extracted Data</h4>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
             `;
             
-            Object.keys(data).forEach(key => {
+            const displayFields = ['hotel', 'agent', 'checkIn', 'checkOut', 'nights', 'roomType', 'paidRooms', 'focPolicy', 'focRooms', 'rate', 'tdInclusive', 'mealPlan', 'currency', 'remarks'];
+            
+            displayFields.forEach(key => {
                 if (data[key] && data[key] !== '') {
                     html += `
                         <div>
@@ -915,8 +923,12 @@ async function extractWithAI() {
             html += `
                     </div>
                     <div style="margin-top:16px;display:flex;gap:8px;">
-                        <button onclick="addExtractedGroup()" class="btn-primary btn-sm"><i class="fas fa-save"></i> Add Group</button>
-                        <button onclick="document.getElementById('aiResult').style.display='none'" class="btn-secondary btn-sm"><i class="fas fa-times"></i> Close</button>
+                        <button onclick="addExtractedGroup()" class="btn-primary btn-sm">
+                            <i class="fas fa-save"></i> Add Group
+                        </button>
+                        <button onclick="document.getElementById('aiResult').style.display='none'" class="btn-secondary btn-sm">
+                            <i class="fas fa-times"></i> Close
+                        </button>
                     </div>
                 </div>
             `;
@@ -928,6 +940,9 @@ async function extractWithAI() {
             resultDiv.innerHTML = `
                 <div style="background:#FC818120;padding:16px;border-radius:8px;margin-top:12px;color:#FC8181;">
                     <strong>❌ ${result?.message || 'Failed to extract data'}</strong>
+                    <div style="font-size:12px;margin-top:8px;color:var(--text-secondary);">
+                        Make sure your Gemini API key is correct and the text contains booking information.
+                    </div>
                 </div>
             `;
         }
@@ -936,6 +951,9 @@ async function extractWithAI() {
         resultDiv.innerHTML = `
             <div style="background:#FC818120;padding:16px;border-radius:8px;margin-top:12px;color:#FC8181;">
                 <strong>❌ Error: ${error.message}</strong>
+                <div style="font-size:12px;margin-top:8px;color:var(--text-secondary);">
+                    Check your internet connection and make sure the Apps Script URL is correct.
+                </div>
             </div>
         `;
     }
