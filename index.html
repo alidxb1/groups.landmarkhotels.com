@@ -1,1 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✦ Landmark Group Sales Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-logo">✦</div>
+                <h1>Landmark Group Sales</h1>
+                <h2>Tracker</h2>
+                <p class="login-subtitle">Enterprise Group Booking Management</p>
+            </div>
+            <div class="login-form">
+                <div class="input-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="loginUsername" placeholder="Username" value="admin">
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="loginPassword" placeholder="Password" value="admin123">
+                </div>
+                <button onclick="handleLogin()" class="btn-primary btn-block">
+                    <i class="fas fa-sign-in-alt"></i> Sign In
+                </button>
+                <p class="login-footer">© 2026 Landmark Hotels • All Rights Reserved</p>
+            </div>
+        </div>
+    </div>
 
+    <!-- Main App -->
+    <div id="mainApp" style="display:none;">
+        <!-- Top Bar -->
+        <header class="header">
+            <div class="header-left">
+                <div class="brand">
+                    <span class="brand-icon">✦</span>
+                    <span class="brand-text">Landmark Group Sales Tracker</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="notification-badge" onclick="toggleNotifications()">
+                    <i class="fas fa-bell"></i>
+                    <span id="notificationCount" class="badge">0</span>
+                </div>
+                <div class="user-profile">
+                    <span id="userDisplay">Admin</span>
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <button onclick="handleLogout()" class="btn-secondary btn-sm">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <nav class="sidebar">
+                <button class="nav-item active" data-section="dashboard">
+                    <i class="fas fa-th-large"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-item" data-section="groups">
+                    <i class="fas fa-users"></i>
+                    <span>All Groups</span>
+                </button>
+                <button class="nav-item" data-section="addGroup">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>New Entry</span>
+                </button>
+                <button class="nav-item" data-section="quickAdd">
+                    <i class="fas fa-bolt"></i>
+                    <span>Quick Add</span>
+                </button>
+                <button class="nav-item" data-section="aiExtract">
+                    <i class="fas fa-robot"></i>
+                    <span>AI Extract</span>
+                </button>
+                <button class="nav-item" data-section="followUps">
+                    <i class="fas fa-clock"></i>
+                    <span>Follow-ups</span>
+                </button>
+                <button class="nav-item" data-section="reports">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reports</span>
+                </button>
+                <button class="nav-item" data-section="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </button>
+            </nav>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Dashboard Section -->
+                <section id="section-dashboard" class="section active">
+                    <h2><i class="fas fa-th-large"></i> Dashboard Overview</h2>
+                    
+                    <!-- Stats Cards -->
+                    <div class="stats-grid" id="statsGrid">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#48BB7820;color:#48BB78;">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-label">Active Groups</span>
+                                <span class="stat-value" id="activeGroups">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#63B3ED20;color:#63B3ED;">
+                                <i class="fas fa-hotel"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-label">Rooms Today</span>
+                                <span class="stat-value" id="roomsToday">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#48BB7820;color:#48BB78;">
+                                <i class="fas fa-coins"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-label">Revenue YTD</span>
+                                <span class="stat-value" id="revenueYTD">AED 0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#9F7AEA20;color:#9F7AEA;">
+                                <i class="fas fa-calendar-week"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-label">Coming This Week</span>
+                                <span class="stat-value" id="comingWeek">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#F6AD5520;color:#F6AD55;">
+                                <i class="fas fa-bell"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-label">Follow-ups Due</span>
+                                <span class="stat-value" id="followUpsDue">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="dashboard-grid">
+                        <div class="card">
+                            <h3><i class="fas fa-chart-pie"></i> Groups by Status</h3>
+                            <div id="statusChart" class="chart-container"></div>
+                        </div>
+                        <div class="card">
+                            <h3><i class="fas fa-trophy"></i> Top Agents</h3>
+                            <div id="topAgentsList" class="agent-list"></div>
+                        </div>
+                        <div class="card full-width">
+                            <h3><i class="fas fa-chart-line"></i> Monthly Revenue</h3>
+                            <div id="monthlyChart" class="chart-container"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Groups Section -->
+                <section id="section-groups" class="section">
+                    <h2><i class="fas fa-users"></i> All Groups</h2>
+                    <div class="toolbar">
+                        <div class="toolbar-left">
+                            <input type="text" id="searchGroups" placeholder="Search groups..." oninput="filterGroups()">
+                            <select id="filterStatus" onchange="filterGroups()">
+                                <option value="All">All Status</option>
+                                <option value="Inquiry">Inquiry</option>
+                                <option value="Offered">Offered</option>
+                                <option value="Tentative">Tentative</option>
+                                <option value="Confirmed">Confirmed</option>
+                                <option value="Cancelled">Cancelled</option>
+                                <option value="Lost">Lost</option>
+                            </select>
+                            <select id="filterHotel" onchange="filterGroups()">
+                                <option value="All">All Hotels</option>
+                            </select>
+                        </div>
+                        <div class="toolbar-right">
+                            <button onclick="exportData()" class="btn-primary btn-sm">
+                                <i class="fas fa-file-excel"></i> Export Excel
+                            </button>
+                            <button onclick="refreshGroups()" class="btn-secondary btn-sm">
+                                <i class="fas fa-sync"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-container" id="groupsTableContainer">
+                        <table id="groupsTable">
+                            <thead>
+                                <tr>
+                                    <th>Group ID</th>
+                                    <th>Hotel</th>
+                                    <th>Agent</th>
+                                    <th>Status</th>
+                                    <th>Check-In</th>
+                                    <th>Check-Out</th>
+                                    <th>Rooms</th>
+                                    <th>Revenue</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="groupsTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Add Group Section -->
+                <section id="section-addGroup" class="section">
+                    <h2><i class="fas fa-plus-circle"></i> New Group Entry</h2>
+                    <div class="card">
+                        <form id="addGroupForm" class="form-grid">
+                            <div class="form-group">
+                                <label>Hotel *</label>
+                                <select id="addHotel" required>
+                                    <option value="">Select Hotel</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Agent *</label>
+                                <input type="text" id="addAgent" list="agentList" required>
+                                <datalist id="agentList"></datalist>
+                            </div>
+                            <div class="form-group">
+                                <label>Status *</label>
+                                <select id="addStatus" required>
+                                    <option value="Inquiry">Inquiry</option>
+                                    <option value="Offered">Offered</option>
+                                    <option value="Tentative">Tentative</option>
+                                    <option value="Confirmed">Confirmed</option>
+                                    <option value="Cancelled">Cancelled</option>
+                                    <option value="Lost">Lost</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Check-In Date *</label>
+                                <input type="date" id="addCheckIn" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Check-Out Date *</label>
+                                <input type="date" id="addCheckOut" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Room Type *</label>
+                                <select id="addRoomType" required>
+                                    <option value="Standard">Standard</option>
+                                    <option value="Deluxe">Deluxe</option>
+                                    <option value="Suite">Suite</option>
+                                    <option value="Premium">Premium</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Paid Rooms *</label>
+                                <input type="number" id="addPaidRooms" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label>FOC Policy</label>
+                                <select id="addFOCPolicy">
+                                    <option value="None">None</option>
+                                    <option value="15+1">15+1</option>
+                                    <option value="20+1">20+1</option>
+                                    <option value="25+1">25+1</option>
+                                    <option value="Custom">Custom</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>FOC Rooms</label>
+                                <input type="number" id="addFOCRooms" min="0" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Rate (AED) *</label>
+                                <input type="number" id="addRate" step="0.01" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label>TD Inclusive?</label>
+                                <select id="addTDInclusive">
+                                    <option value="No">No</option>
+                                    <option value="Yes">Yes</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Meal Plan</label>
+                                <select id="addMealPlan">
+                                    <option value="Room Only">Room Only</option>
+                                    <option value="Bed & Breakfast">Bed & Breakfast</option>
+                                    <option value="Half Board">Half Board</option>
+                                    <option value="Full Board">Full Board</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Meal Supplement</label>
+                                <input type="number" id="addMealSupplement" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Currency</label>
+                                <select id="addCurrency">
+                                    <option value="AED">AED</option>
+                                    <option value="USD">USD</option>
+                                    <option value="EUR">EUR</option>
+                                    <option value="GBP">GBP</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Exchange Rate</label>
+                                <input type="number" id="addExchangeRate" step="0.01" min="0" value="1">
+                            </div>
+                            <div class="form-group">
+                                <label>Cutoff Date</label>
+                                <input type="date" id="addCutoffDate">
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Remarks</label>
+                                <textarea id="addRemarks" rows="2"></textarea>
+                            </div>
+                            <div class="form-actions full-width">
+                                <button type="submit" class="btn-primary">
+                                    <i class="fas fa-save"></i> Save Group
+                                </button>
+                                <button type="reset" class="btn-secondary">Clear</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- Quick Add Section -->
+                <section id="section-quickAdd" class="section">
+                    <h2><i class="fas fa-bolt"></i> Quick Add</h2>
+                    <div class="card">
+                        <p>Quickly add a group with essential details only</p>
+                        <form id="quickAddForm" class="form-grid">
+                            <div class="form-group">
+                                <label>Hotel *</label>
+                                <select id="quickHotel" required>
+                                    <option value="">Select Hotel</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Agent *</label>
+                                <input type="text" id="quickAgent" list="agentList" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Check-In *</label>
+                                <input type="date" id="quickCheckIn" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Check-Out *</label>
+                                <input type="date" id="quickCheckOut" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Total Rooms *</label>
+                                <input type="number" id="quickRooms" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Rate (AED) *</label>
+                                <input type="number" id="quickRate" step="0.01" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Status</label>
+                                <select id="quickStatus">
+                                    <option value="Inquiry">Inquiry</option>
+                                    <option value="Offered">Offered</option>
+                                    <option value="Tentative">Tentative</option>
+                                    <option value="Confirmed">Confirmed</option>
+                                </select>
+                            </div>
+                            <div class="form-actions full-width">
+                                <button type="submit" class="btn-primary">
+                                    <i class="fas fa-bolt"></i> Quick Add
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- AI Extract Section -->
+                <section id="section-aiExtract" class="section">
+                    <h2><i class="fas fa-robot"></i> AI Extract</h2>
+                    <div class="card">
+                        <p>Paste email or WhatsApp text to automatically extract group data</p>
+                        <div class="form-group">
+                            <label>Paste text from email or WhatsApp</label>
+                            <textarea id="aiText" rows="8" placeholder="Paste your email or WhatsApp message here..."></textarea>
+                        </div>
+                        <div class="form-group" style="margin-top:10px;">
+                            <label>Source</label>
+                            <select id="aiSource">
+                                <option value="Email">Email</option>
+                                <option value="WhatsApp">WhatsApp</option>
+                                <option value="Phone">Phone</option>
+                            </select>
+                        </div>
+                        <button onclick="extractWithAI()" class="btn-primary">
+                            <i class="fas fa-magic"></i> Extract with AI
+                        </button>
+                        <div id="aiResult" style="margin-top:20px;display:none;"></div>
+                    </div>
+                </section>
+
+                <!-- Follow-ups Section -->
+                <section id="section-followUps" class="section">
+                    <h2><i class="fas fa-clock"></i> Follow-ups</h2>
+                    <div class="card">
+                        <div class="toolbar">
+                            <button onclick="checkFollowUps()" class="btn-primary btn-sm">
+                                <i class="fas fa-refresh"></i> Check Now
+                            </button>
+                        </div>
+                        <div id="followUpsList" class="follow-ups-container"></div>
+                    </div>
+                </section>
+
+                <!-- Reports Section -->
+                <section id="section-reports" class="section">
+                    <h2><i class="fas fa-chart-bar"></i> Reports</h2>
+                    <div class="card">
+                        <div class="report-filters">
+                            <div class="form-group">
+                                <label>Report Type</label>
+                                <select id="reportType" onchange="generateReport()">
+                                    <option value="monthly">Monthly Summary</option>
+                                    <option value="agent">Agent Performance</option>
+                                    <option value="hotel">Hotel Performance</option>
+                                    <option value="status">Status Distribution</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Month</label>
+                                <input type="month" id="reportMonth" onchange="generateReport()">
+                            </div>
+                            <div class="form-actions">
+                                <button onclick="generateReport()" class="btn-primary btn-sm">
+                                    <i class="fas fa-chart-bar"></i> Generate
+                                </button>
+                            </div>
+                        </div>
+                        <div id="reportResults"></div>
+                    </div>
+                </section>
+
+                <!-- Settings Section -->
+                <section id="section-settings" class="section">
+                    <h2><i class="fas fa-cog"></i> Settings</h2>
+                    <div class="card">
+                        <h3>Configuration</h3>
+                        <form id="settingsForm">
+                            <div class="form-group">
+                                <label>Apps Script Web App URL</label>
+                                <input type="url" id="settingsWebAppUrl" placeholder="https://script.google.com/.../exec">
+                            </div>
+                            <div class="form-group">
+                                <label>Gemini API Key</label>
+                                <input type="password" id="settingsGeminiKey" placeholder="Enter your Gemini API key">
+                            </div>
+                            <button type="submit" class="btn-primary">
+                                <i class="fas fa-save"></i> Save Settings
+                            </button>
+                        </form>
+                        <div style="margin-top:30px;padding-top:20px;border-top:1px solid #E2E8F0;">
+                            <h4>System Status</h4>
+                            <div id="systemStatus">
+                                <p><i class="fas fa-circle" style="color:#48BB78;"></i> Backend: <span id="backendStatus">Checking...</span></p>
+                                <p><i class="fas fa-circle" style="color:#48BB78;"></i> Database: <span id="dbStatus">Checking...</span></p>
+                                <p><i class="fas fa-circle" style="color:#48BB78;"></i> AI: <span id="aiStatus">Checking...</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <span>© 2026 Landmark Hotels • All Rights Reserved</span>
+            <span>Version 1.0 • Optimized for 75" Display</span>
+        </footer>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Modal</h3>
+                <button onclick="closeModal()" class="modal-close">&times;</button>
+            </div>
+            <div id="modalBody" class="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
