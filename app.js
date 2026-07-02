@@ -886,16 +886,25 @@ async function extractWithAI() {
         return;
     }
     
+    // Get the API key from settings
+    const geminiKey = state.settings.geminiKey || sessionStorage.getItem('lgt_gemini_key');
+    
+    if (!geminiKey) {
+        showNotification('Gemini API key not configured. Please add it in Settings.', 'error');
+        return;
+    }
+    
     const resultDiv = document.getElementById('aiResult');
     resultDiv.style.display = 'block';
     resultDiv.innerHTML = '<div class="text-center text-muted">⏳ Processing with AI... (may take 10-20 seconds)</div>';
     
     try {
-        // Call the API with GET method (using JSONP)
+        // Call the API with the key
         const result = await callApi('extractWithAI', { 
             text: text, 
-            source: source 
-        }, 'GET'); // <-- Make sure this is GET
+            source: source,
+            apiKey: geminiKey  // Pass the key
+        }, 'GET');
         
         console.log('AI Result:', result);
         
