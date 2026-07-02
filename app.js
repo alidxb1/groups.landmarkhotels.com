@@ -107,23 +107,26 @@ function callApi(action, params = {}, method = 'GET') {
         
         const cleanUrl = apiUrl.replace(/\/$/, '');
         
+        // Generate a unique callback name
+        const callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        
         // FOR AI EXTRACTION - Always use GET with JSONP
         if (action === 'extractWithAI') {
-            // Use JSONP for AI extraction
-            const script = document.createElement('script');
-            const callbackName = 'jsonp_callback_' + Date.now();
-            
             // Build URL with parameters
             let url = cleanUrl + '?action=' + encodeURIComponent(action) + 
-                      '&callback=' + callbackName +
+                      '&callback=' + encodeURIComponent(callbackName) +
                       '&text=' + encodeURIComponent(params.text || '') +
                       '&source=' + encodeURIComponent(params.source || 'Email');
+            
+            // Create script element
+            const script = document.createElement('script');
+            script.src = url;
             
             // Set timeout
             const timeout = setTimeout(() => {
                 cleanup();
-                reject(new Error('Request timed out'));
-            }, 60000); // Longer timeout for AI (60 seconds)
+                reject(new Error('Request timed out. The AI might be taking too long.'));
+            }, 60000); // 60 seconds timeout
             
             // Cleanup function
             function cleanup() {
@@ -134,51 +137,80 @@ function callApi(action, params = {}, method = 'GET') {
                 clearTimeout(timeout);
             }
             
-            // Define callback
+            // Define callback BEFORE adding script
             window[callbackName] = function(response) {
-                cleanup();
-                resolve(response);
+                try {
+                    cleanup();
+                    resolve(response);
+                } catch (error) {
+                    reject(error);
+                }
             };
             
-            // Handle error
+            // Handle script load error
             script.onerror = function() {
                 cleanup();
-                reject(new Error('Failed to load script'));
+                reject(new Error('Failed to load script. Check your internet connection.'));
             };
             
             // Add script to page
-            script.src = url;
             document.head.appendChild(script);
             return;
         }
         
-        // FOR ADD/UPDATE/DELETE - Try POST first, fallback to GET with JSONP
-        if (action === 'addGroup' || action === 'updateGroup' || action === 'deleteGroup' || action === 'exportToExcel') {
-            // Try POST first
-            fetch(cleanUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: action,
-                    ...params
-                })
-            })
-            .then(response => response.text())
-            .then(text => {
-                try {
-                    const data = JSON.parse(text);
-                    resolve(data);
-                } catch (e) {
-                    // If POST fails, try GET with JSONP
-                    useJSONP();
+        // FOR GET REQUESTS (Dashboard, Groups, etc.)
+        let url = cleanUrl + '?action=' + encodeURIComponent(action) + '&callback=' + encodeURIComponent(callbackName);
+        
+        // Add additional parameters
+        Object.keys(params).forEach(key => {
+            if (key !== 'action' && key !== 'callback') {
+                if (typeof params[key] === 'object') {
+                    url += '&' + key + '=' + encodeURIComponent(JSON.stringify(params[key]));
+                } else {
+                    url += '&' + key + '=' + encodeURIComponent(params[key]);
                 }
-            })
-            .catch(() => {
-                // If POST fails, try GET with JSONP
-                useJSONP();
-            });
+            }
+        });
+        
+        // Create script element
+        const script = document.createElement('script');
+        script.src = url;
+        
+        // Set timeout
+        const timeout = setTimeout(() => {
+            cleanup();
+            reject(new Error('Request timed out'));
+        }, 30000);
+        
+        // Cleanup function
+        function cleanup() {
+            if (script.parentNode) {
+                script.parentNode.removeChild(script);
+            }
+            delete window[callbackName];
+            clearTimeout(timeout);
+        }
+        
+        // Define callback BEFORE adding script
+        window[callbackName] = function(response) {
+            try {
+                cleanup();
+                resolve(response);
+            } catch (error) {
+                reject(error);
+            }
+        };
+        
+        // Handle script load error
+        script.onerror = function() {
+            cleanup();
+            reject(new Error('Failed to load script. Check your internet connection.'));
+        };
+        
+        // Add script to page
+        document.head.appendChild(script);
+    });
+}
             
             function useJSONP() {
                 const script = document.createElement('script');
