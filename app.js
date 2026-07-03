@@ -181,20 +181,88 @@ function callApi(action, params, method) {
         var cleanUrl = apiUrl.replace(/\/$/, '');
         var callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         
-        // Build URL
-        var url = cleanUrl + '?action=' + encodeURIComponent(action) + 
-                  '&callback=' + encodeURIComponent(callbackName);
+        // For POST requests (Add, Update, Delete)
+        if (method === 'POST') {
+            // Use a hidden form submission approach (no await needed)
+            try {
+                var form = document.createElement('form');
+                form.method = 'POST';
+                form.action = cleanUrl;
+                form.target = '_blank';
+                form.style.display = 'none';
+                
+                var payload = {
+                    action: action,
+                    params: params
+                };
+                
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'payload';
+                input.value = JSON.stringify(payload);
+                form.appendChild(input);
+                
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
+                
+                // Show a message to the user
+                showNotification('Operation submitted! Check the new tab.', 'success');
+                resolve({ success: true, message: 'Operation submitted' });
+                
+            } catch (error) {
+                reject(new Error('Failed to submit form: ' + error.message));
+            }
+            return;
+        }
         
-        // Add parameters for GET requests
-        if (method === 'GET') {
-            Object.keys(params).forEach(function(key) {
+        // For GET requests (Dashboard, Groups, AI extraction) - Use JSONP
+        var url = cleanUrl + '?action=' + encodeURIComponent(action) + '&callback=' + encodeURIComponent(callbackName);
+        
+        // Add additional parameters
+        Object.keys(params).forEach(function(key) {
+            if (key !== 'action' && key !== 'callback') {
                 if (typeof params[key] === 'object') {
                     url += '&' + key + '=' + encodeURIComponent(JSON.stringify(params[key]));
                 } else {
                     url += '&' + key + '=' + encodeURIComponent(params[key]);
                 }
-            });
+            }
+        });
+        
+        var script = document.createElement('script');
+        script.src = url;
+        
+        var timeout = setTimeout(function() {
+            cleanup();
+            reject(new Error('Request timed out'));
+        }, 30000);
+        
+        function cleanup() {
+            if (script.parentNode) {
+                script.parentNode.removeChild(script);
+            }
+            delete window[callbackName];
+            clearTimeout(timeout);
         }
+        
+        window[callbackName] = function(response) {
+            try {
+                cleanup();
+                resolve(response);
+            } catch (error) {
+                reject(error);
+            }
+        };
+        
+        script.onerror = function() {
+            cleanup();
+            reject(new Error('Failed to load script. Check your internet connection.'));
+        };
+        
+        document.head.appendChild(script);
+    });
+}
         
         // For POST requests (Add, Update, Delete)
 if (method === 'POST') {
