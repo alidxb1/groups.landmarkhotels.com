@@ -196,32 +196,63 @@ function callApi(action, params, method) {
             });
         }
         
-        // For POST requests, use form submission
-        if (method === 'POST' && (action === 'addGroup' || action === 'updateGroup' || action === 'deleteGroup')) {
-            var form = document.createElement('form');
-            form.method = 'POST';
-            form.action = cleanUrl;
-            form.target = '_blank';
-            form.style.display = 'none';
-            
-            var payload = {
-                action: action,
-                params: params
-            };
-            
-            var input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'payload';
-            input.value = JSON.stringify(payload);
-            form.appendChild(input);
-            
-            document.body.appendChild(form);
-            form.submit();
-            document.body.removeChild(form);
-            
-            resolve({ success: true, message: 'Operation submitted' });
-            return;
-        }
+        // For POST requests (Add, Update, Delete)
+if (method === 'POST') {
+  // Use fetch with proper CORS handling
+  try {
+    const response = await fetch(cleanUrl, {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: action,
+        ...params
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const text = await response.text();
+    try {
+      const data = JSON.parse(text);
+      resolve(data);
+    } catch (e) {
+      resolve({ success: false, message: 'Invalid response from server' });
+    }
+  } catch (error) {
+    // If fetch fails, try the form submission approach
+    try {
+      const formData = new URLSearchParams();
+      formData.append('payload', JSON.stringify({
+        action: action,
+        ...params
+      }));
+      
+      const response2 = await fetch(cleanUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString()
+      });
+      
+      const text2 = await response2.text();
+      try {
+        const data = JSON.parse(text2);
+        resolve(data);
+      } catch (e) {
+        resolve({ success: false, message: 'Invalid response from server' });
+      }
+    } catch (error2) {
+      reject(new Error('Failed to send request'));
+    }
+  }
+  return;
+}
         
         // For GET requests and AI extraction, use JSONP
         var script = document.createElement('script');
