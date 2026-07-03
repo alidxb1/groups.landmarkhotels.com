@@ -1101,21 +1101,30 @@ function exportData() {
     
     showNotification('Exporting data...', 'info');
     
-    // Build the URL with parameters
-    var apiUrl = state.settings.webAppUrl || sessionStorage.getItem('lgt_api_url');
-    if (!apiUrl) {
-        showNotification('API URL not configured', 'error');
-        return;
-    }
-    
-    var cleanUrl = apiUrl.replace(/\/$/, '');
-    var url = cleanUrl + '?action=exportToExcel&status=' + encodeURIComponent(status) + 
-              '&hotel=' + encodeURIComponent(hotel) + '&agent=' + encodeURIComponent(agent);
-    
-    // Open the export URL in a new tab to trigger download
-    window.open(url, '_blank');
-    showNotification('Export download started!', 'success');
+    callApi('exportToExcel', { 
+        status: status, 
+        hotel: hotel, 
+        agent: agent 
+    }, 'POST')
+    .then(function(result) {
+        console.log('Export result:', result);
+        if (result && result.success) {
+            showNotification('✅ Export created: ' + (result.sheetName || 'CSV file'), 'success');
+            // If we got a CSV, it will download automatically
+            // If we got a sheet name, open Google Sheet
+            if (result.sheetName) {
+                window.open('https://docs.google.com/spreadsheets/d/10wK8WaCENlBR0dLLKJ9HmeuqnDgIb5SDTzMaLWrpffk/edit', '_blank');
+            }
+        } else {
+            showNotification('❌ ' + (result?.message || 'Failed to export'), 'error');
+        }
+    })
+    ['catch'](function(error) {
+        console.error('Error exporting:', error);
+        showNotification('Error exporting: ' + error.message, 'error');
+    });
 }
+
 // ============================================================
 // HELPERS
 // ============================================================
