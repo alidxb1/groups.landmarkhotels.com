@@ -181,63 +181,49 @@ function callApi(action, params, method) {
         var cleanUrl = apiUrl.replace(/\/$/, '');
         var callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         
-        // For POST requests (Add, Update, Delete)
-if (method === 'POST') {
-    try {
-        // Build the payload
-        var payload = {
-            action: action,
-            data: params.data || params,
-            groupId: params.groupId || null
-        };
-        
-        // Log what we're sending (for debugging)
-        console.log('📤 Sending POST payload:', payload);
-        
-        // Use fetch to send the data
-        fetch(cleanUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(function(response) {
-            return response.text();
-        })
-        .then(function(text) {
-            console.log('📥 Response:', text);
+        // ============================================================
+        // POST REQUESTS (Add, Update, Delete) - Use FORM SUBMISSION
+        // ============================================================
+        if (method === 'POST') {
             try {
-                var data = JSON.parse(text);
-                if (data.success) {
-                    showNotification('Group saved successfully!', 'success');
-                    resolve(data);
-                } else {
-                    showNotification('Error: ' + data.message, 'error');
-                    resolve(data);
-                }
-            } catch (e) {
-                console.error('❌ Parse error:', e);
-                showNotification('Invalid response from server', 'error');
-                resolve({ success: false, message: 'Invalid response: ' + text });
+                // Create a form to submit the data
+                var form = document.createElement('form');
+                form.method = 'POST';
+                form.action = cleanUrl;
+                form.target = '_blank'; // Opens in new tab to avoid page reload
+                form.style.display = 'none';
+                
+                // Build the payload
+                var payload = {
+                    action: action,
+                    data: params.data || params,
+                    groupId: params.groupId || null
+                };
+                
+                // Create a hidden input with the payload
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'payload';
+                input.value = JSON.stringify(payload);
+                form.appendChild(input);
+                
+                // Append form to body, submit, then remove
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
+                
+                // Show success message
+                showNotification('Operation submitted! Check the new tab.', 'success');
+                resolve({ success: true, message: 'Operation submitted' });
+                
+            } catch (error) {
+                reject(new Error('Failed to submit form: ' + error.message));
             }
-        })
-        .catch(function(error) {
-            console.error('❌ Fetch error:', error);
-            showNotification('Failed to save: ' + error.message, 'error');
-            reject(new Error('Failed to send request: ' + error.message));
-        });
-    } catch (error) {
-        console.error('❌ Error:', error);
-        showNotification('Failed to save: ' + error.message, 'error');
-        reject(new Error('Failed to send request: ' + error.message));
-    }
-    return;
-}
+            return;
+        }
         
         // ============================================================
-        // GET REQUESTS (Dashboard, Groups, AI extraction)
+        // GET REQUESTS (Dashboard, Groups, AI extraction) - Use JSONP
         // ============================================================
         var url = cleanUrl + '?action=' + encodeURIComponent(action) + '&callback=' + encodeURIComponent(callbackName);
         
