@@ -436,8 +436,8 @@ function renderGroupsTable(groups) {
         var hotel = group['Hotel'] || 'N/A';
         var agent = group['Agent'] || 'N/A';
         var status = statusClass;
-        var checkIn = group['Check-In'] || 'N/A';
-        var checkOut = group['Check-Out'] || 'N/A';
+        var checkIn = formatDate(group['Check-In']);   // <-- FORMAT DATE
+        var checkOut = formatDate(group['Check-Out']); // <-- FORMAT DATE
         var rooms = group['Total Rooms'] || 0;
         var revenue = group['Net Revenue'] || 0;
         
@@ -511,8 +511,17 @@ function viewGroup(groupId) {
     var details = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">';
     Object.keys(group).forEach(function(key) {
         if (key && group[key] && group[key] !== '') {
+            var value = group[key];
+            // Format dates if they look like ISO dates
+            if (key === 'Check-In' || key === 'Check-Out' || 
+                key === 'Created Date' || key === 'Last Modified' ||
+                key === 'Cutoff Date' || key === 'Inquiry Date' ||
+                key === 'Offered Date' || key === 'Tentative Date' ||
+                key === 'Confirmed Date' || key === 'Archive Date') {
+                value = formatDate(value);
+            }
             details += '<div><strong style="font-size:12px;color:var(--text-secondary);">' + key + ':</strong>';
-            details += '<div style="font-size:14px;">' + group[key] + '</div></div>';
+            details += '<div style="font-size:14px;">' + value + '</div></div>';
         }
     });
     details += '</div>';
@@ -532,8 +541,8 @@ function editGroup(groupId) {
     document.getElementById('addHotel').value = group['Hotel'] || '';
     document.getElementById('addAgent').value = group['Agent'] || '';
     document.getElementById('addStatus').value = group['Status'] || 'Inquiry';
-    document.getElementById('addCheckIn').value = group['Check-In'] || '';
-    document.getElementById('addCheckOut').value = group['Check-Out'] || '';
+    document.getElementById('addCheckIn').value = formatDate(group['Check-In']) || '';  // <-- FORMAT DATE
+    document.getElementById('addCheckOut').value = formatDate(group['Check-Out']) || ''; // <-- FORMAT DATE
     document.getElementById('addRoomType').value = group['Room Type'] || 'Standard';
     document.getElementById('addPaidRooms').value = group['Paid Rooms'] || 0;
     document.getElementById('addFOCPolicy').value = group['FOC Policy'] || 'None';
@@ -544,7 +553,7 @@ function editGroup(groupId) {
     document.getElementById('addMealSupplement').value = group['Meal Supplement'] || 0;
     document.getElementById('addCurrency').value = group['Currency'] || 'AED';
     document.getElementById('addExchangeRate').value = group['Exchange Rate'] || 1;
-    document.getElementById('addCutoffDate').value = group['Cutoff Date'] || '';
+    document.getElementById('addCutoffDate').value = formatDate(group['Cutoff Date']) || ''; // <-- FORMAT DATE
     document.getElementById('addRemarks').value = group['Remarks'] || '';
     
     document.getElementById('addGroupForm').dataset.editId = groupId;
@@ -582,6 +591,8 @@ function handleAddGroup() {
     
     var checkIn = document.getElementById('addCheckIn').value;
     var checkOut = document.getElementById('addCheckOut').value;
+    
+    // Calculate nights
     var nights = 0;
     if (checkIn && checkOut) {
         var start = new Date(checkIn);
@@ -597,8 +608,8 @@ function handleAddGroup() {
         hotel: document.getElementById('addHotel').value,
         agent: document.getElementById('addAgent').value,
         status: document.getElementById('addStatus').value,
-        checkIn: checkIn,
-        checkOut: checkOut,
+        checkIn: checkIn,  // Already in YYYY-MM-DD format from date input
+        checkOut: checkOut, // Already in YYYY-MM-DD format from date input
         nights: nights,
         roomType: document.getElementById('addRoomType').value,
         paidRooms: paidRooms,
@@ -616,7 +627,7 @@ function handleAddGroup() {
         source: 'Manual',
         totalRoomNights: totalRooms * nights
     };
-    
+     
     var apiCall;
     if (editId) {
         apiCall = callApi('updateGroup', { groupId: editId, data: data }, 'POST');
@@ -848,7 +859,8 @@ function renderFollowUps(followUps) {
         html += '<div class="follow-up-info">';
         html += '<div class="follow-up-id">' + group['Group ID'] + ' - ' + group['Hotel'] + '</div>';
         html += '<div class="follow-up-details">';
-        html += 'Agent: ' + group['Agent'] + ' | Status: ' + group['Status'] + ' | Follow-up: ' + group['Follow-up Date'];
+        html += 'Agent: ' + group['Agent'] + ' | Status: ' + group['Status'];
+        html += ' | Follow-up: ' + formatDate(group['Follow-up Date']); // <-- FORMAT DATE
         if (group['Remarks']) {
             html += ' | ' + group['Remarks'];
         }
@@ -1187,6 +1199,30 @@ function loadAgents() {
         ['catch'](function(error) {
             console.error('Error loading agents:', error);
         });
+}
+// ============================================================
+// FORMAT DATE - Convert ISO date to YYYY-MM-DD for display
+// ============================================================
+
+function formatDate(dateString) {
+    if (!dateString) return '';
+    try {
+        // If it's already in YYYY-MM-DD format, return as is
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+            return dateString;
+        }
+        
+        var date = new Date(dateString);
+        // Check if date is valid
+        if (isNaN(date.getTime())) return dateString;
+        
+        var year = date.getFullYear();
+        var month = String(date.getMonth() + 1).padStart(2, '0');
+        var day = String(date.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+    } catch (e) {
+        return dateString;
+    }
 }
 
 // ============================================================
