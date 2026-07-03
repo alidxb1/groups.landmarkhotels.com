@@ -540,7 +540,7 @@ function editGroup(groupId) {
     
     document.getElementById('addHotel').value = group['Hotel'] || '';
     document.getElementById('addAgent').value = group['Agent'] || '';
-    document.getElementById('addStatus').value = group['Status'] || 'Inquiry';  // <-- Status is loaded
+    document.getElementById('addStatus').value = group['Status'] || 'Inquiry';
     document.getElementById('addCheckIn').value = formatDate(group['Check-In']) || '';
     document.getElementById('addCheckOut').value = formatDate(group['Check-Out']) || '';
     document.getElementById('addRoomType').value = group['Room Type'] || 'Standard';
@@ -556,8 +556,16 @@ function editGroup(groupId) {
     document.getElementById('addCutoffDate').value = formatDate(group['Cutoff Date']) || '';
     document.getElementById('addRemarks').value = group['Remarks'] || '';
     
+    // ✅ CRITICAL: Store the group ID and make sure status will be updated
     document.getElementById('addGroupForm').dataset.editId = groupId;
     document.querySelector('#addGroupForm button[type="submit"]').textContent = 'Update Group';
+    
+    // ✅ CRITICAL: Force status to be included in the update
+    var statusField = document.getElementById('addStatus');
+    if (statusField) {
+        statusField.dataset.originalValue = group['Status'] || 'Inquiry';
+    }
+    
     navigateTo('addGroup');
     showNotification('Edit mode: Update the group details', 'info');
 }
@@ -585,27 +593,30 @@ function deleteGroup(groupId) {
 // ADD GROUP
 // ============================================================
 
-async function handleAddGroup() {
-    const form = document.getElementById('addGroupForm');
-    const editId = form.dataset.editId;
+function handleAddGroup() {
+    var form = document.getElementById('addGroupForm');
+    var editId = form.dataset.editId;
     
-    const checkIn = document.getElementById('addCheckIn').value;
-    const checkOut = document.getElementById('addCheckOut').value;
-    let nights = 0;
+    var checkIn = document.getElementById('addCheckIn').value;
+    var checkOut = document.getElementById('addCheckOut').value;
+    var nights = 0;
     if (checkIn && checkOut) {
-        const start = new Date(checkIn);
-        const end = new Date(checkOut);
+        var start = new Date(checkIn);
+        var end = new Date(checkOut);
         nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
     }
     
-    const paidRooms = parseInt(document.getElementById('addPaidRooms').value) || 0;
-    const focRooms = parseInt(document.getElementById('addFOCRooms').value) || 0;
-    const totalRooms = paidRooms + focRooms;
+    var paidRooms = parseInt(document.getElementById('addPaidRooms').value) || 0;
+    var focRooms = parseInt(document.getElementById('addFOCRooms').value) || 0;
+    var totalRooms = paidRooms + focRooms;
     
-    const data = {
+    // ✅ CRITICAL: Explicitly get the status value
+    var statusValue = document.getElementById('addStatus').value;
+    
+    var data = {
         hotel: document.getElementById('addHotel').value,
         agent: document.getElementById('addAgent').value,
-        status: document.getElementById('addStatus').value,  // <-- Status is included
+        status: statusValue,  // <-- This must be included!
         checkIn: checkIn,
         checkOut: checkOut,
         nights: nights,
@@ -625,7 +636,10 @@ async function handleAddGroup() {
         source: 'Manual',
         totalRoomNights: totalRooms * nights
     };
-       
+    
+    // ✅ Log the data being sent
+    console.log('📤 Saving group data:', data);
+        
     var apiCall;
     if (editId) {
         apiCall = callApi('updateGroup', { groupId: editId, data: data }, 'POST');
