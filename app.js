@@ -1099,14 +1099,17 @@ function exportData() {
     var hotel = document.getElementById('filterHotel').value || 'All';
     var agent = document.getElementById('searchGroups').value || '';
     
+    showNotification('Exporting data...', 'info');
+    
     callApi('exportToExcel', { status: status, hotel: hotel, agent: agent }, 'POST')
         .then(function(result) {
+            console.log('Export result:', result);
             if (result && result.success) {
-                showNotification('Export created: ' + result.sheetName, 'success');
+                showNotification('✅ Export created: ' + result.sheetName + ' (' + result.rowCount + ' rows)', 'success');
                 // Open the Google Sheet in a new tab
-                window.open('https://docs.google.com/spreadsheets/d/10wK8WaCENlBR0dLLKJ9HmeuqnDgIb5SDTzMaLWrpffk', '_blank');
+                window.open('https://docs.google.com/spreadsheets/d/10wK8WaCENlBR0dLLKJ9HmeuqnDgIb5SDTzMaLWrpffk/edit', '_blank');
             } else {
-                showNotification(result?.message || 'Failed to export', 'error');
+                showNotification('❌ ' + (result?.message || 'Failed to export'), 'error');
             }
         })
         ['catch'](function(error) {
@@ -1114,6 +1117,7 @@ function exportData() {
             showNotification('Error exporting: ' + error.message, 'error');
         });
 }
+
 // ============================================================
 // HELPERS
 // ============================================================
