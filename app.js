@@ -1103,7 +1103,8 @@ function exportData() {
         .then(function(result) {
             if (result && result.success) {
                 showNotification('Export created: ' + result.sheetName, 'success');
-                showNotification('Check your Google Sheet for the exported data', 'info');
+                // Open the Google Sheet in a new tab
+                window.open('https://docs.google.com/spreadsheets/d/10wK8WaCENlBR0dLLKJ9HmeuqnDgIb5SDTzMaLWrpffk', '_blank');
             } else {
                 showNotification(result?.message || 'Failed to export', 'error');
             }
@@ -1113,7 +1114,6 @@ function exportData() {
             showNotification('Error exporting: ' + error.message, 'error');
         });
 }
-
 // ============================================================
 // HELPERS
 // ============================================================
