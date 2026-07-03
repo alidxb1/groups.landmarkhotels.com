@@ -540,9 +540,9 @@ function editGroup(groupId) {
     
     document.getElementById('addHotel').value = group['Hotel'] || '';
     document.getElementById('addAgent').value = group['Agent'] || '';
-    document.getElementById('addStatus').value = group['Status'] || 'Inquiry';
-    document.getElementById('addCheckIn').value = formatDate(group['Check-In']) || '';  // <-- FORMAT DATE
-    document.getElementById('addCheckOut').value = formatDate(group['Check-Out']) || ''; // <-- FORMAT DATE
+    document.getElementById('addStatus').value = group['Status'] || 'Inquiry';  // <-- Status is loaded
+    document.getElementById('addCheckIn').value = formatDate(group['Check-In']) || '';
+    document.getElementById('addCheckOut').value = formatDate(group['Check-Out']) || '';
     document.getElementById('addRoomType').value = group['Room Type'] || 'Standard';
     document.getElementById('addPaidRooms').value = group['Paid Rooms'] || 0;
     document.getElementById('addFOCPolicy').value = group['FOC Policy'] || 'None';
@@ -553,7 +553,7 @@ function editGroup(groupId) {
     document.getElementById('addMealSupplement').value = group['Meal Supplement'] || 0;
     document.getElementById('addCurrency').value = group['Currency'] || 'AED';
     document.getElementById('addExchangeRate').value = group['Exchange Rate'] || 1;
-    document.getElementById('addCutoffDate').value = formatDate(group['Cutoff Date']) || ''; // <-- FORMAT DATE
+    document.getElementById('addCutoffDate').value = formatDate(group['Cutoff Date']) || '';
     document.getElementById('addRemarks').value = group['Remarks'] || '';
     
     document.getElementById('addGroupForm').dataset.editId = groupId;
@@ -585,31 +585,29 @@ function deleteGroup(groupId) {
 // ADD GROUP
 // ============================================================
 
-function handleAddGroup() {
-    var form = document.getElementById('addGroupForm');
-    var editId = form.dataset.editId;
+async function handleAddGroup() {
+    const form = document.getElementById('addGroupForm');
+    const editId = form.dataset.editId;
     
-    var checkIn = document.getElementById('addCheckIn').value;
-    var checkOut = document.getElementById('addCheckOut').value;
-    
-    // Calculate nights
-    var nights = 0;
+    const checkIn = document.getElementById('addCheckIn').value;
+    const checkOut = document.getElementById('addCheckOut').value;
+    let nights = 0;
     if (checkIn && checkOut) {
-        var start = new Date(checkIn);
-        var end = new Date(checkOut);
+        const start = new Date(checkIn);
+        const end = new Date(checkOut);
         nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
     }
     
-    var paidRooms = parseInt(document.getElementById('addPaidRooms').value) || 0;
-    var focRooms = parseInt(document.getElementById('addFOCRooms').value) || 0;
-    var totalRooms = paidRooms + focRooms;
+    const paidRooms = parseInt(document.getElementById('addPaidRooms').value) || 0;
+    const focRooms = parseInt(document.getElementById('addFOCRooms').value) || 0;
+    const totalRooms = paidRooms + focRooms;
     
-    var data = {
+    const data = {
         hotel: document.getElementById('addHotel').value,
         agent: document.getElementById('addAgent').value,
-        status: document.getElementById('addStatus').value,
-        checkIn: checkIn,  // Already in YYYY-MM-DD format from date input
-        checkOut: checkOut, // Already in YYYY-MM-DD format from date input
+        status: document.getElementById('addStatus').value,  // <-- Status is included
+        checkIn: checkIn,
+        checkOut: checkOut,
         nights: nights,
         roomType: document.getElementById('addRoomType').value,
         paidRooms: paidRooms,
@@ -627,7 +625,7 @@ function handleAddGroup() {
         source: 'Manual',
         totalRoomNights: totalRooms * nights
     };
-     
+       
     var apiCall;
     if (editId) {
         apiCall = callApi('updateGroup', { groupId: editId, data: data }, 'POST');
