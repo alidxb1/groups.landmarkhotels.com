@@ -181,51 +181,64 @@ function callApi(action, params, method) {
         var cleanUrl = apiUrl.replace(/\/$/, '');
         var callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         
-        // For POST requests (Add, Update, Delete) - Use FORM SUBMISSION
-if (method === 'POST') {
-    try {
-        // Create a form to submit the data
-        var form = document.createElement('form');
-        form.method = 'POST';
-        form.action = cleanUrl;
-        form.target = '_blank';
-        form.style.display = 'none';
-        
-        // Build the payload as a simple object
-        var payload = {
-            action: action,
-            data: params.data || params,
-            groupId: params.groupId || null
-        };
-        
-        // Create hidden inputs for each field
-        var mainInput = document.createElement('input');
-        mainInput.type = 'hidden';
-        mainInput.name = 'payload';
-        mainInput.value = JSON.stringify(payload);
-        form.appendChild(mainInput);
-        
-        // Append form to body, submit, then remove
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
-        
-        // Show success message
-        showNotification('Operation submitted! Check the new tab.', 'success');
-        resolve({ success: true, message: 'Operation submitted' });
-        
-    } catch (error) {
-        reject(new Error('Failed to submit form: ' + error.message));
-    }
-    return;
-}
+        // ============================================================
+        // POST REQUESTS (Add, Update, Delete)
+        // ============================================================
+        if (method === 'POST') {
+            // Build the payload
+            var payload = {
+                action: action,
+                data: params.data || params,
+                groupId: params.groupId || null
+            };
+            
+            // Use fetch with proper CORS headers
+            fetch(cleanUrl, {
+                method: 'POST',
+                mode: 'no-cors',  // This is the key!
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(function(response) {
+                // With no-cors, we can't read the response
+                showNotification('Operation submitted! Check your Google Sheet.', 'success');
+                resolve({ success: true, message: 'Operation submitted' });
+            })
+            .catch(function(error) {
+                // If fetch fails, try the form method
+                try {
+                    var form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = cleanUrl;
+                    form.target = '_blank';
+                    form.style.display = 'none';
+                    
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'payload';
+                    input.value = JSON.stringify(payload);
+                    form.appendChild(input);
+                    
+                    document.body.appendChild(form);
+                    form.submit();
+                    document.body.removeChild(form);
+                    
+                    showNotification('Operation submitted! Check the new tab.', 'success');
+                    resolve({ success: true, message: 'Operation submitted' });
+                } catch (error2) {
+                    reject(new Error('Failed to send request: ' + error2.message));
+                }
+            });
+            return;
+        }
         
         // ============================================================
         // GET REQUESTS (Dashboard, Groups, AI extraction) - Use JSONP
         // ============================================================
         var url = cleanUrl + '?action=' + encodeURIComponent(action) + '&callback=' + encodeURIComponent(callbackName);
         
-        // Add additional parameters
         Object.keys(params).forEach(function(key) {
             if (key !== 'action' && key !== 'callback') {
                 if (typeof params[key] === 'object') {
@@ -269,6 +282,7 @@ if (method === 'POST') {
         document.head.appendChild(script);
     });
 }
+
 // ============================================================
 // DASHBOARD
 // ============================================================
