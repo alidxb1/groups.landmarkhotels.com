@@ -181,10 +181,33 @@ function callApi(action, params, method) {
         var cleanUrl = apiUrl.replace(/\/$/, '');
         var callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         
-        // ============================================================
-        // POST REQUESTS (Add, Update, Delete)
-        // ============================================================
-        if (method === 'POST') {
+        // For POST requests (Add, Update, Delete)
+if (method === 'POST') {
+    try {
+        // Use fetch instead of form submission
+        fetch(cleanUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: action,
+                params: params
+            })
+        })
+        .then(function(response) {
+            return response.text();
+        })
+        .then(function(text) {
+            try {
+                var data = JSON.parse(text);
+                resolve(data);
+            } catch (e) {
+                resolve({ success: false, message: 'Invalid response from server' });
+            }
+        })
+        .catch(function(error) {
+            // If fetch fails, try form submission
             try {
                 var form = document.createElement('form');
                 form.method = 'POST';
@@ -209,12 +232,15 @@ function callApi(action, params, method) {
                 
                 showNotification('Operation submitted! Check the new tab.', 'success');
                 resolve({ success: true, message: 'Operation submitted' });
-                
-            } catch (error) {
-                reject(new Error('Failed to submit form: ' + error.message));
+            } catch (error2) {
+                reject(new Error('Failed to send request: ' + error2.message));
             }
-            return;
-        }
+        });
+    } catch (error) {
+        reject(new Error('Failed to send request: ' + error.message));
+    }
+    return;
+}
         
         // ============================================================
         // GET REQUESTS (Dashboard, Groups, AI extraction)
