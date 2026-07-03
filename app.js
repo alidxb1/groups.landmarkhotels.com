@@ -163,7 +163,7 @@ function navigateTo(section) {
 }
 
 // ============================================================
-// API CALLS
+// API CALLS - CLEAN VERSION
 // ============================================================
 
 function callApi(action, params, method) {
@@ -181,9 +181,10 @@ function callApi(action, params, method) {
         var cleanUrl = apiUrl.replace(/\/$/, '');
         var callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         
-        // For POST requests (Add, Update, Delete)
+        // ============================================================
+        // POST REQUESTS (Add, Update, Delete)
+        // ============================================================
         if (method === 'POST') {
-            // Use a hidden form submission approach (no await needed)
             try {
                 var form = document.createElement('form');
                 form.method = 'POST';
@@ -206,7 +207,6 @@ function callApi(action, params, method) {
                 form.submit();
                 document.body.removeChild(form);
                 
-                // Show a message to the user
                 showNotification('Operation submitted! Check the new tab.', 'success');
                 resolve({ success: true, message: 'Operation submitted' });
                 
@@ -216,7 +216,9 @@ function callApi(action, params, method) {
             return;
         }
         
-        // For GET requests (Dashboard, Groups, AI extraction) - Use JSONP
+        // ============================================================
+        // GET REQUESTS (Dashboard, Groups, AI extraction)
+        // ============================================================
         var url = cleanUrl + '?action=' + encodeURIComponent(action) + '&callback=' + encodeURIComponent(callbackName);
         
         // Add additional parameters
@@ -230,99 +232,6 @@ function callApi(action, params, method) {
             }
         });
         
-        var script = document.createElement('script');
-        script.src = url;
-        
-        var timeout = setTimeout(function() {
-            cleanup();
-            reject(new Error('Request timed out'));
-        }, 30000);
-        
-        function cleanup() {
-            if (script.parentNode) {
-                script.parentNode.removeChild(script);
-            }
-            delete window[callbackName];
-            clearTimeout(timeout);
-        }
-        
-        window[callbackName] = function(response) {
-            try {
-                cleanup();
-                resolve(response);
-            } catch (error) {
-                reject(error);
-            }
-        };
-        
-        script.onerror = function() {
-            cleanup();
-            reject(new Error('Failed to load script. Check your internet connection.'));
-        };
-        
-        document.head.appendChild(script);
-    });
-}
-        
-        // For POST requests (Add, Update, Delete)
-if (method === 'POST') {
-  // Use fetch with proper CORS handling
-  try {
-    const response = await fetch(cleanUrl, {
-      method: 'POST',
-      mode: 'cors',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        action: action,
-        ...params
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const text = await response.text();
-    try {
-      const data = JSON.parse(text);
-      resolve(data);
-    } catch (e) {
-      resolve({ success: false, message: 'Invalid response from server' });
-    }
-  } catch (error) {
-    // If fetch fails, try the form submission approach
-    try {
-      const formData = new URLSearchParams();
-      formData.append('payload', JSON.stringify({
-        action: action,
-        ...params
-      }));
-      
-      const response2 = await fetch(cleanUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData.toString()
-      });
-      
-      const text2 = await response2.text();
-      try {
-        const data = JSON.parse(text2);
-        resolve(data);
-      } catch (e) {
-        resolve({ success: false, message: 'Invalid response from server' });
-      }
-    } catch (error2) {
-      reject(new Error('Failed to send request'));
-    }
-  }
-  return;
-}
-        
-        // For GET requests and AI extraction, use JSONP
         var script = document.createElement('script');
         script.src = url;
         
@@ -356,7 +265,6 @@ if (method === 'POST') {
         document.head.appendChild(script);
     });
 }
-
 // ============================================================
 // DASHBOARD
 // ============================================================
