@@ -184,16 +184,20 @@ function callApi(action, params, method) {
         // For POST requests (Add, Update, Delete)
 if (method === 'POST') {
     try {
-        // Use fetch instead of form submission
+        // Build the payload
+        var payload = {
+            action: action,
+            data: params.data || params,
+            groupId: params.groupId || null
+        };
+        
+        // Use fetch to send the data
         fetch(cleanUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                action: action,
-                params: params
-            })
+            body: JSON.stringify(payload)
         })
         .then(function(response) {
             return response.text();
@@ -201,9 +205,16 @@ if (method === 'POST') {
         .then(function(text) {
             try {
                 var data = JSON.parse(text);
-                resolve(data);
+                if (data.success) {
+                    showNotification('Group saved successfully!', 'success');
+                    resolve(data);
+                } else {
+                    showNotification('Error: ' + data.message, 'error');
+                    resolve(data);
+                }
             } catch (e) {
-                resolve({ success: false, message: 'Invalid response from server' });
+                showNotification('Invalid response from server', 'error');
+                resolve({ success: false, message: 'Invalid response' });
             }
         })
         .catch(function(error) {
@@ -215,15 +226,18 @@ if (method === 'POST') {
                 form.target = '_blank';
                 form.style.display = 'none';
                 
-                var payload = {
+                var formPayload = {
                     action: action,
-                    params: params
+                    params: {
+                        data: params.data || params,
+                        groupId: params.groupId || null
+                    }
                 };
                 
                 var input = document.createElement('input');
                 input.type = 'hidden';
                 input.name = 'payload';
-                input.value = JSON.stringify(payload);
+                input.value = JSON.stringify(formPayload);
                 form.appendChild(input);
                 
                 document.body.appendChild(form);
@@ -233,10 +247,12 @@ if (method === 'POST') {
                 showNotification('Operation submitted! Check the new tab.', 'success');
                 resolve({ success: true, message: 'Operation submitted' });
             } catch (error2) {
+                showNotification('Failed to send request: ' + error2.message, 'error');
                 reject(new Error('Failed to send request: ' + error2.message));
             }
         });
     } catch (error) {
+        showNotification('Failed to send request: ' + error.message, 'error');
         reject(new Error('Failed to send request: ' + error.message));
     }
     return;
