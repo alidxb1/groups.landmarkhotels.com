@@ -191,11 +191,15 @@ if (method === 'POST') {
             groupId: params.groupId || null
         };
         
+        // Log what we're sending (for debugging)
+        console.log('📤 Sending POST payload:', payload);
+        
         // Use fetch to send the data
         fetch(cleanUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
             body: JSON.stringify(payload)
         })
@@ -203,6 +207,7 @@ if (method === 'POST') {
             return response.text();
         })
         .then(function(text) {
+            console.log('📥 Response:', text);
             try {
                 var data = JSON.parse(text);
                 if (data.success) {
@@ -213,46 +218,19 @@ if (method === 'POST') {
                     resolve(data);
                 }
             } catch (e) {
+                console.error('❌ Parse error:', e);
                 showNotification('Invalid response from server', 'error');
-                resolve({ success: false, message: 'Invalid response' });
+                resolve({ success: false, message: 'Invalid response: ' + text });
             }
         })
         .catch(function(error) {
-            // If fetch fails, try form submission
-            try {
-                var form = document.createElement('form');
-                form.method = 'POST';
-                form.action = cleanUrl;
-                form.target = '_blank';
-                form.style.display = 'none';
-                
-                var formPayload = {
-                    action: action,
-                    params: {
-                        data: params.data || params,
-                        groupId: params.groupId || null
-                    }
-                };
-                
-                var input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'payload';
-                input.value = JSON.stringify(formPayload);
-                form.appendChild(input);
-                
-                document.body.appendChild(form);
-                form.submit();
-                document.body.removeChild(form);
-                
-                showNotification('Operation submitted! Check the new tab.', 'success');
-                resolve({ success: true, message: 'Operation submitted' });
-            } catch (error2) {
-                showNotification('Failed to send request: ' + error2.message, 'error');
-                reject(new Error('Failed to send request: ' + error2.message));
-            }
+            console.error('❌ Fetch error:', error);
+            showNotification('Failed to save: ' + error.message, 'error');
+            reject(new Error('Failed to send request: ' + error.message));
         });
     } catch (error) {
-        showNotification('Failed to send request: ' + error.message, 'error');
+        console.error('❌ Error:', error);
+        showNotification('Failed to save: ' + error.message, 'error');
         reject(new Error('Failed to send request: ' + error.message));
     }
     return;
