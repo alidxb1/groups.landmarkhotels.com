@@ -186,29 +186,49 @@ function callApi(action, params, method) {
         // POST REQUESTS (Add, Update, Delete)
         // ============================================================
         if (method === 'POST') {
-            // Build the payload
+            // Build the payload - IMPORTANT: action must be at the top level
             var payload = {
                 action: action,
-                data: params.data || params,
-                groupId: params.groupId || null
+                groupId: params.groupId || null,
+                data: params.data || params
             };
             
-            // Use fetch with proper CORS headers
+            console.log('📤 Sending POST to:', cleanUrl);
+            console.log('📤 Payload:', JSON.stringify(payload));
+            
+            // Use fetch with proper CORS
             fetch(cleanUrl, {
                 method: 'POST',
-                mode: 'no-cors',  // This is the key!
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify(payload)
             })
             .then(function(response) {
-                // With no-cors, we can't read the response
-                showNotification('Operation submitted! Check your Google Sheet.', 'success');
-                resolve({ success: true, message: 'Operation submitted' });
+                console.log('📥 Response status:', response.status);
+                return response.text();
+            })
+            .then(function(text) {
+                console.log('📥 Response text:', text);
+                try {
+                    var data = JSON.parse(text);
+                    if (data.success) {
+                        showNotification('Success!', 'success');
+                        resolve(data);
+                    } else {
+                        showNotification('Error: ' + data.message, 'error');
+                        resolve(data);
+                    }
+                } catch (e) {
+                    console.error('❌ Parse error:', e);
+                    showNotification('Invalid response from server', 'error');
+                    resolve({ success: false, message: 'Invalid response: ' + text });
+                }
             })
             .catch(function(error) {
-                // If fetch fails, try the form method
+                console.error('❌ Fetch error:', error);
+                // Fallback: try JSONP with POST
                 try {
                     var form = document.createElement('form');
                     form.method = 'POST';
@@ -216,10 +236,16 @@ function callApi(action, params, method) {
                     form.target = '_blank';
                     form.style.display = 'none';
                     
+                    var formPayload = {
+                        action: action,
+                        groupId: params.groupId || null,
+                        data: params.data || params
+                    };
+                    
                     var input = document.createElement('input');
                     input.type = 'hidden';
                     input.name = 'payload';
-                    input.value = JSON.stringify(payload);
+                    input.value = JSON.stringify(formPayload);
                     form.appendChild(input);
                     
                     document.body.appendChild(form);
@@ -229,6 +255,7 @@ function callApi(action, params, method) {
                     showNotification('Operation submitted! Check the new tab.', 'success');
                     resolve({ success: true, message: 'Operation submitted' });
                 } catch (error2) {
+                    showNotification('Failed: ' + error2.message, 'error');
                     reject(new Error('Failed to send request: ' + error2.message));
                 }
             });
@@ -283,7 +310,6 @@ function callApi(action, params, method) {
         document.head.appendChild(script);
     });
 }
-
 // ============================================================
 // DASHBOARD
 // ============================================================
@@ -1189,10 +1215,10 @@ function exportData() {
     var status = document.getElementById('filterStatus').value || 'All';
     var hotel = document.getElementById('filterHotel').value || 'All';
     var agent = document.getElementById('searchGroups').value || '';
+    var month = document.getElementById('filterMonth').value || 'All';
     
     showNotification('Exporting data...', 'info');
     
-    // Get the API URL
     var apiUrl = state.settings.webAppUrl || sessionStorage.getItem('lgt_api_url');
     if (!apiUrl) {
         showNotification('API URL not configured', 'error');
@@ -1201,15 +1227,15 @@ function exportData() {
     
     var cleanUrl = apiUrl.replace(/\/$/, '');
     
-    // Build the URL with parameters
+    // Use GET for export (simpler, works with JSONP)
     var url = cleanUrl + '?action=exportToExcel' + 
               '&status=' + encodeURIComponent(status) + 
               '&hotel=' + encodeURIComponent(hotel) + 
-              '&agent=' + encodeURIComponent(agent);
+              '&agent=' + encodeURIComponent(agent) +
+              '&month=' + encodeURIComponent(month);
     
-    // Open in new tab to trigger download
     window.open(url, '_blank');
-    showNotification('✅ CSV file downloading...', 'success');
+    showNotification('✅ Export started!', 'success');
 }
 // ============================================================
 // HELPERS
