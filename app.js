@@ -166,7 +166,6 @@ function navigateTo(section) {
 // ============================================================
 // API CALLS - CLEAN VERSION
 // ============================================================
-
 function callApi(action, params, method) {
     method = method || 'GET';
     params = params || {};
@@ -179,18 +178,11 @@ function callApi(action, params, method) {
             return;
         }
         
-        // ============================================================
-        // 1. DEFINE CALLBACK NAME FIRST
-        // ============================================================
+        var cleanUrl = apiUrl.replace(/\/$/, '');
         var callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         
         // ============================================================
-        // 2. CLEAN THE URL
-        // ============================================================
-        var cleanUrl = apiUrl.replace(/\/$/, '');
-        
-        // ============================================================
-        // 3. POST REQUESTS (Add, Update, Delete)
+        // POST REQUESTS (Add, Update, Delete)
         // ============================================================
         if (method === 'POST') {
             var payload = {
@@ -233,41 +225,13 @@ function callApi(action, params, method) {
             })
             .catch(function(error) {
                 console.error('❌ Fetch error:', error);
-                try {
-                    var form = document.createElement('form');
-                    form.method = 'POST';
-                    form.action = cleanUrl;
-                    form.target = '_blank';
-                    form.style.display = 'none';
-                    
-                    var formPayload = {
-                        action: action,
-                        groupId: params.groupId || null,
-                        data: params.data || params
-                    };
-                    
-                    var input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = 'payload';
-                    input.value = JSON.stringify(formPayload);
-                    form.appendChild(input);
-                    
-                    document.body.appendChild(form);
-                    form.submit();
-                    document.body.removeChild(form);
-                    
-                    showNotification('Operation submitted! Check the new tab.', 'success');
-                    resolve({ success: true, message: 'Operation submitted' });
-                } catch (error2) {
-                    showNotification('Failed: ' + error2.message, 'error');
-                    reject(new Error('Failed to send request: ' + error2.message));
-                }
+                reject(error);
             });
             return;
         }
         
         // ============================================================
-        // 4. GET REQUESTS - Build URL with callback
+        // GET REQUESTS - Use JSONP
         // ============================================================
         var url = cleanUrl + '?action=' + encodeURIComponent(action) + '&callback=' + encodeURIComponent(callbackName);
         
@@ -282,13 +246,15 @@ function callApi(action, params, method) {
             }
         });
         
+        console.log('📤 Sending GET to:', url);
+        
         var script = document.createElement('script');
         script.src = url;
         
         var timeout = setTimeout(function() {
             cleanup();
             reject(new Error('Request timed out'));
-        }, 60000);
+        }, 30000);
         
         function cleanup() {
             if (script.parentNode) {
@@ -300,6 +266,7 @@ function callApi(action, params, method) {
         
         window[callbackName] = function(response) {
             try {
+                console.log('📥 JSONP Response:', response);
                 cleanup();
                 resolve(response);
             } catch (error) {
@@ -320,11 +287,13 @@ function callApi(action, params, method) {
 // ============================================================
 
 function loadDashboard() {
+    console.log('📊 Loading dashboard...');
+    
     callApi('getDashboard')
         .then(function(data) {
+            console.log('📊 Dashboard response:', data);
             if (data && data.success && data.data) {
                 var d = data.data;
-                
                 document.getElementById('activeGroups').textContent = d.activeGroups || 0;
                 document.getElementById('roomsToday').textContent = d.roomsToday || 0;
                 document.getElementById('revenueYTD').textContent = 'AED ' + formatCurrency(d.revenueYTD || 0);
@@ -346,11 +315,12 @@ function loadDashboard() {
                 var dbCircle = document.getElementById('dbStatus').parentElement.querySelector('.fa-circle');
                 if (dbCircle) dbCircle.style.color = '#48BB78';
             } else {
+                console.error('❌ Dashboard data error:', data);
                 showNotification('Failed to load dashboard data', 'error');
             }
         })
         ['catch'](function(error) {
-            console.error('Error loading dashboard:', error);
+            console.error('❌ Error loading dashboard:', error);
             document.getElementById('backendStatus').textContent = 'Error ❌';
             var statusCircle = document.getElementById('backendStatus').parentElement.querySelector('.fa-circle');
             if (statusCircle) statusCircle.style.color = '#FC8181';
@@ -359,7 +329,6 @@ function loadDashboard() {
             if (dbCircle) dbCircle.style.color = '#FC8181';
         });
 }
-
 function renderStatusChart(statusCounts) {
     var container = document.getElementById('statusChart');
     var statuses = Object.keys(statusCounts);
