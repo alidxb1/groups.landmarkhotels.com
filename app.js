@@ -2,10 +2,6 @@
 // LANDMARK GROUPS TRACKER - COMPLETE FRONTEND
 // ============================================================
 
-// ============================================================
-// CONFIGURATION
-// ============================================================
-
 const APP_CONFIG = {
     DEFAULT_USERNAME: 'admin',
     DEFAULT_PASSWORD: 'admin123'
@@ -29,14 +25,7 @@ let state = {
 
 document.addEventListener('DOMContentLoaded', function() {
     loadSettings();
-    populateMonthFilter();
-
-    // ✅ Test connection on load
-    setTimeout(function() {
-        testConnection();
-    }, 2000);
-});
-
+    
     // Check if already logged in
     var savedSession = sessionStorage.getItem('lgt_session');
     if (savedSession === 'true') {
@@ -88,6 +77,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Populate hotels
     populateHotelDropdowns();
     loadAgents();
+    populateMonthFilter();
+    
+    // Test connection after 2 seconds
+    setTimeout(function() {
+        testConnection();
+    }, 2000);
     
     console.log('✦ Landmark Groups Tracker loaded successfully!');
 });
@@ -170,8 +165,9 @@ function navigateTo(section) {
 }
 
 // ============================================================
-// API CALLS - CLEAN VERSION
+// API CALLS
 // ============================================================
+
 function callApi(action, params, method) {
     method = method || 'GET';
     params = params || {};
@@ -187,9 +183,7 @@ function callApi(action, params, method) {
         var cleanUrl = apiUrl.replace(/\/$/, '');
         var callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         
-        // ============================================================
         // POST REQUESTS (Add, Update, Delete)
-        // ============================================================
         if (method === 'POST') {
             var payload = {
                 action: action,
@@ -236,12 +230,9 @@ function callApi(action, params, method) {
             return;
         }
         
-        // ============================================================
         // GET REQUESTS - Use JSONP
-        // ============================================================
         var url = cleanUrl + '?action=' + encodeURIComponent(action) + '&callback=' + encodeURIComponent(callbackName);
         
-        // Add additional parameters
         Object.keys(params).forEach(function(key) {
             if (key !== 'action' && key !== 'callback') {
                 if (typeof params[key] === 'object') {
@@ -289,10 +280,20 @@ function callApi(action, params, method) {
     });
 }
 
+// ============================================================
+// CONNECTION TEST
+// ============================================================
+
 function testConnection() {
     console.log('🔍 Testing connection...');
     var apiUrl = state.settings.webAppUrl || sessionStorage.getItem('lgt_api_url');
     console.log('🔍 API URL:', apiUrl);
+    
+    if (!apiUrl) {
+        console.error('❌ No API URL configured');
+        document.getElementById('backendStatus').textContent = 'No URL ❌';
+        return;
+    }
     
     callApi('testConnection')
         .then(function(data) {
@@ -300,7 +301,11 @@ function testConnection() {
             if (data && data.success) {
                 showNotification('✅ Connection successful!', 'success');
                 document.getElementById('backendStatus').textContent = 'Connected ✅';
-                document.getElementById('backendStatus').parentElement.querySelector('.fa-circle').style.color = '#48BB78';
+                var statusCircle = document.getElementById('backendStatus').parentElement.querySelector('.fa-circle');
+                if (statusCircle) statusCircle.style.color = '#48BB78';
+                document.getElementById('dbStatus').textContent = 'Available ✅';
+                var dbCircle = document.getElementById('dbStatus').parentElement.querySelector('.fa-circle');
+                if (dbCircle) dbCircle.style.color = '#48BB78';
                 loadDashboard();
                 loadGroups();
             } else {
@@ -340,7 +345,6 @@ function loadDashboard() {
                 
                 state.dashboardData = d;
                 
-                // Update system status
                 document.getElementById('backendStatus').textContent = 'Connected ✅';
                 var statusCircle = document.getElementById('backendStatus').parentElement.querySelector('.fa-circle');
                 if (statusCircle) statusCircle.style.color = '#48BB78';
@@ -362,6 +366,7 @@ function loadDashboard() {
             if (dbCircle) dbCircle.style.color = '#FC8181';
         });
 }
+
 function renderStatusChart(statusCounts) {
     var container = document.getElementById('statusChart');
     var statuses = Object.keys(statusCounts);
@@ -438,8 +443,11 @@ function renderMonthlyChart(monthlyData) {
 // ============================================================
 
 function loadGroups() {
+    console.log('📋 Loading groups...');
+    
     callApi('getGroups')
         .then(function(data) {
+            console.log('📋 Groups response:', data);
             if (data && data.success) {
                 state.groups = data.data || [];
                 renderGroupsTable(state.groups);
@@ -449,7 +457,7 @@ function loadGroups() {
             }
         })
         ['catch'](function(error) {
-            console.error('Error loading groups:', error);
+            console.error('❌ Error loading groups:', error);
             showNotification('Error loading groups: ' + error.message, 'error');
         });
 }
@@ -470,8 +478,8 @@ function renderGroupsTable(groups) {
         var hotel = group['Hotel'] || 'N/A';
         var agent = group['Agent'] || 'N/A';
         var status = statusClass;
-        var checkIn = formatDate(group['Check-In']);   // <-- FORMAT DATE
-        var checkOut = formatDate(group['Check-Out']); // <-- FORMAT DATE
+        var checkIn = formatDate(group['Check-In']);
+        var checkOut = formatDate(group['Check-Out']);
         var rooms = group['Total Rooms'] || 0;
         var revenue = group['Net Revenue'] || 0;
         
@@ -521,7 +529,6 @@ function filterGroups() {
         filtered = filtered.filter(function(g) { return g['Hotel'] === hotelFilter; });
     }
     
-    // ✅ ADD MONTH FILTER
     if (monthFilter !== 'All') {
         filtered = filtered.filter(function(g) {
             var checkIn = g['Check-In'] || '';
@@ -532,75 +539,6 @@ function filterGroups() {
     renderGroupsTable(filtered);
 }
 
-// ============================================================
-// POPULATE MONTH FILTER - DYNAMIC (Next 12 Months)
-// ============================================================
-
-function populateMonthFilter() {
-    var select = document.getElementById('filterMonth');
-    if (!select) return;
-    
-    // Keep the "All Months" option
-    var allOption = document.createElement('option');
-    allOption.value = 'All';
-    allOption.textContent = 'All Months';
-    select.innerHTML = '';
-    select.appendChild(allOption);
-    
-    var now = new Date();
-    var currentMonth = now.getMonth();
-    var currentYear = now.getFullYear();
-    var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
-    // Show last 6 months and next 12 months (18 months total)
-    var startMonth = currentMonth - 6;
-    var startYear = currentYear;
-    
-    if (startMonth < 0) {
-        startMonth += 12;
-        startYear -= 1;
-    }
-    
-    var endMonth = currentMonth + 12;
-    var endYear = currentYear;
-    
-    if (endMonth >= 12) {
-        endMonth -= 12;
-        endYear += 1;
-    }
-    
-    var month = startMonth;
-    var year = startYear;
-    
-    while (true) {
-        var monthKey = year + '-' + String(month + 1).padStart(2, '0');
-        var monthLabel = monthNames[month] + ' ' + year;
-        
-        var option = document.createElement('option');
-        option.value = monthKey;
-        option.textContent = monthLabel;
-        
-        // Auto-select current month
-        if (month === currentMonth && year === currentYear) {
-            option.textContent = monthLabel + ' (Current)';
-            option.selected = true;
-        }
-        
-        select.appendChild(option);
-        
-        month++;
-        if (month >= 12) {
-            month = 0;
-            year++;
-        }
-        
-        if (year > endYear || (year === endYear && month > endMonth)) {
-            break;
-        }
-    }
-    
-    console.log('📅 Month filter populated with ' + (select.options.length - 1) + ' months');
-}
 function refreshGroups() {
     loadGroups();
     showNotification('Groups refreshed', 'success');
@@ -624,12 +562,7 @@ function viewGroup(groupId) {
     Object.keys(group).forEach(function(key) {
         if (key && group[key] && group[key] !== '') {
             var value = group[key];
-            // Format dates if they look like ISO dates
-            if (key === 'Check-In' || key === 'Check-Out' || 
-                key === 'Created Date' || key === 'Last Modified' ||
-                key === 'Cutoff Date' || key === 'Inquiry Date' ||
-                key === 'Offered Date' || key === 'Tentative Date' ||
-                key === 'Confirmed Date' || key === 'Archive Date') {
+            if (key === 'Check-In' || key === 'Check-Out' || key === 'Created Date' || key === 'Last Modified' || key === 'Cutoff Date') {
                 value = formatDate(value);
             }
             details += '<div><strong style="font-size:12px;color:var(--text-secondary);">' + key + ':</strong>';
@@ -668,16 +601,8 @@ function editGroup(groupId) {
     document.getElementById('addCutoffDate').value = formatDate(group['Cutoff Date']) || '';
     document.getElementById('addRemarks').value = group['Remarks'] || '';
     
-    // ✅ CRITICAL: Store the group ID and make sure status will be updated
     document.getElementById('addGroupForm').dataset.editId = groupId;
     document.querySelector('#addGroupForm button[type="submit"]').textContent = 'Update Group';
-    
-    // ✅ CRITICAL: Force status to be included in the update
-    var statusField = document.getElementById('addStatus');
-    if (statusField) {
-        statusField.dataset.originalValue = group['Status'] || 'Inquiry';
-    }
-    
     navigateTo('addGroup');
     showNotification('Edit mode: Update the group details', 'info');
 }
@@ -721,14 +646,12 @@ function handleAddGroup() {
     var paidRooms = parseInt(document.getElementById('addPaidRooms').value) || 0;
     var focRooms = parseInt(document.getElementById('addFOCRooms').value) || 0;
     var totalRooms = paidRooms + focRooms;
-    
-    // ✅ CRITICAL: Explicitly get the status value
     var statusValue = document.getElementById('addStatus').value;
     
     var data = {
         hotel: document.getElementById('addHotel').value,
         agent: document.getElementById('addAgent').value,
-        status: statusValue,  // <-- This must be included!
+        status: statusValue,
         checkIn: checkIn,
         checkOut: checkOut,
         nights: nights,
@@ -749,9 +672,8 @@ function handleAddGroup() {
         totalRoomNights: totalRooms * nights
     };
     
-    // ✅ Log the data being sent
     console.log('📤 Saving group data:', data);
-        
+    
     var apiCall;
     if (editId) {
         apiCall = callApi('updateGroup', { groupId: editId, data: data }, 'POST');
@@ -850,7 +772,6 @@ function extractWithAI() {
         return;
     }
     
-    // Check if API key is configured
     var geminiKey = state.settings.geminiKey || sessionStorage.getItem('lgt_gemini_key');
     if (!geminiKey) {
         showNotification('Gemini API key not configured. Please add it in Settings.', 'error');
@@ -984,7 +905,7 @@ function renderFollowUps(followUps) {
         html += '<div class="follow-up-id">' + group['Group ID'] + ' - ' + group['Hotel'] + '</div>';
         html += '<div class="follow-up-details">';
         html += 'Agent: ' + group['Agent'] + ' | Status: ' + group['Status'];
-        html += ' | Follow-up: ' + formatDate(group['Follow-up Date']); // <-- FORMAT DATE
+        html += ' | Follow-up: ' + formatDate(group['Follow-up Date']);
         if (group['Remarks']) {
             html += ' | ' + group['Remarks'];
         }
@@ -1029,40 +950,33 @@ function saveSettings() {
     testConnection();
 }
 
-function testConnection() {
-    var status = document.getElementById('backendStatus');
-    status.textContent = 'Testing...';
-    var statusCircle = status.parentElement.querySelector('.fa-circle');
-    if (statusCircle) statusCircle.style.color = '#F6AD55';
+// ============================================================
+// EXPORT
+// ============================================================
+
+function exportData() {
+    var status = document.getElementById('filterStatus').value || 'All';
+    var hotel = document.getElementById('filterHotel').value || 'All';
+    var agent = document.getElementById('searchGroups').value || '';
+    var month = document.getElementById('filterMonth').value || 'All';
     
-    callApi('getGroups')
-        .then(function(result) {
-            if (result && result.success) {
-                status.textContent = 'Connected ✅';
-                var circle = status.parentElement.querySelector('.fa-circle');
-                if (circle) circle.style.color = '#48BB78';
-                document.getElementById('dbStatus').textContent = 'Available ✅';
-                var dbCircle = document.getElementById('dbStatus').parentElement.querySelector('.fa-circle');
-                if (dbCircle) dbCircle.style.color = '#48BB78';
-                
-                if (state.settings.geminiKey || sessionStorage.getItem('lgt_gemini_key')) {
-                    document.getElementById('aiStatus').textContent = 'Configured ✅';
-                    var aiCircle = document.getElementById('aiStatus').parentElement.querySelector('.fa-circle');
-                    if (aiCircle) aiCircle.style.color = '#48BB78';
-                }
-                loadDashboard();
-                loadGroups();
-            } else {
-                status.textContent = 'Failed ❌';
-                var circle = status.parentElement.querySelector('.fa-circle');
-                if (circle) circle.style.color = '#FC8181';
-            }
-        })
-        ['catch'](function() {
-            status.textContent = 'Error ❌';
-            var circle = status.parentElement.querySelector('.fa-circle');
-            if (circle) circle.style.color = '#FC8181';
-        });
+    showNotification('Exporting data...', 'info');
+    
+    var apiUrl = state.settings.webAppUrl || sessionStorage.getItem('lgt_api_url');
+    if (!apiUrl) {
+        showNotification('API URL not configured', 'error');
+        return;
+    }
+    
+    var cleanUrl = apiUrl.replace(/\/$/, '');
+    var url = cleanUrl + '?action=exportToExcel' + 
+              '&status=' + encodeURIComponent(status) + 
+              '&hotel=' + encodeURIComponent(hotel) + 
+              '&agent=' + encodeURIComponent(agent) +
+              '&month=' + encodeURIComponent(month);
+    
+    window.open(url, '_blank');
+    showNotification('✅ Export started!', 'success');
 }
 
 // ============================================================
@@ -1215,38 +1129,25 @@ function generateStatusReport(groups) {
 }
 
 // ============================================================
-// EXPORT
-// ============================================================
-
-function exportData() {
-    var status = document.getElementById('filterStatus').value || 'All';
-    var hotel = document.getElementById('filterHotel').value || 'All';
-    var agent = document.getElementById('searchGroups').value || '';
-    var month = document.getElementById('filterMonth').value || 'All';
-    
-    showNotification('Exporting data...', 'info');
-    
-    var apiUrl = state.settings.webAppUrl || sessionStorage.getItem('lgt_api_url');
-    if (!apiUrl) {
-        showNotification('API URL not configured', 'error');
-        return;
-    }
-    
-    var cleanUrl = apiUrl.replace(/\/$/, '');
-    
-    // Use GET for export (simpler, works with JSONP)
-    var url = cleanUrl + '?action=exportToExcel' + 
-              '&status=' + encodeURIComponent(status) + 
-              '&hotel=' + encodeURIComponent(hotel) + 
-              '&agent=' + encodeURIComponent(agent) +
-              '&month=' + encodeURIComponent(month);
-    
-    window.open(url, '_blank');
-    showNotification('✅ Export started!', 'success');
-}
-// ============================================================
 // HELPERS
 // ============================================================
+
+function formatDate(dateString) {
+    if (!dateString) return '';
+    try {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+            return dateString;
+        }
+        var date = new Date(dateString);
+        if (isNaN(date.getTime())) return dateString;
+        var year = date.getFullYear();
+        var month = String(date.getMonth() + 1).padStart(2, '0');
+        var day = String(date.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+    } catch (e) {
+        return dateString;
+    }
+}
 
 function formatCurrency(amount) {
     if (!amount) return '0';
@@ -1312,6 +1213,65 @@ function populateFilterDropdowns() {
     }
 }
 
+function populateMonthFilter() {
+    var select = document.getElementById('filterMonth');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="All">All Months</option>';
+    
+    var now = new Date();
+    var currentMonth = now.getMonth();
+    var currentYear = now.getFullYear();
+    var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    var startMonth = currentMonth - 6;
+    var startYear = currentYear;
+    
+    if (startMonth < 0) {
+        startMonth += 12;
+        startYear -= 1;
+    }
+    
+    var endMonth = currentMonth + 12;
+    var endYear = currentYear;
+    
+    if (endMonth >= 12) {
+        endMonth -= 12;
+        endYear += 1;
+    }
+    
+    var month = startMonth;
+    var year = startYear;
+    
+    while (true) {
+        var monthKey = year + '-' + String(month + 1).padStart(2, '0');
+        var monthLabel = monthNames[month] + ' ' + year;
+        
+        var option = document.createElement('option');
+        option.value = monthKey;
+        option.textContent = monthLabel;
+        
+        if (month === currentMonth && year === currentYear) {
+            option.textContent = monthLabel + ' (Current)';
+            option.selected = true;
+        }
+        
+        select.appendChild(option);
+        
+        month++;
+        if (month >= 12) {
+            month = 0;
+            year++;
+        }
+        
+        if (year > endYear || (year === endYear && month > endMonth)) {
+            break;
+        }
+    }
+    
+    console.log('📅 Month filter populated with ' + (select.options.length - 1) + ' months');
+}
+
 function loadAgents() {
     callApi('getAgents')
         .then(function(result) {
@@ -1329,30 +1289,6 @@ function loadAgents() {
         ['catch'](function(error) {
             console.error('Error loading agents:', error);
         });
-}
-// ============================================================
-// FORMAT DATE - Convert ISO date to YYYY-MM-DD for display
-// ============================================================
-
-function formatDate(dateString) {
-    if (!dateString) return '';
-    try {
-        // If it's already in YYYY-MM-DD format, return as is
-        if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-            return dateString;
-        }
-        
-        var date = new Date(dateString);
-        // Check if date is valid
-        if (isNaN(date.getTime())) return dateString;
-        
-        var year = date.getFullYear();
-        var month = String(date.getMonth() + 1).padStart(2, '0');
-        var day = String(date.getDate()).padStart(2, '0');
-        return year + '-' + month + '-' + day;
-    } catch (e) {
-        return dateString;
-    }
 }
 
 // ============================================================
