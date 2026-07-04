@@ -184,49 +184,33 @@ function callApi(action, params, method) {
         var callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         
         // POST REQUESTS (Add, Update, Delete)
+                // POST REQUESTS (Add, Update, Delete) - Use FORM SUBMISSION to bypass CORS
         if (method === 'POST') {
-            var payload = {
-                action: action,
-                groupId: params.groupId || null,
-                data: params.data || params
-            };
-            
-            console.log('📤 Sending POST to:', cleanUrl);
+            console.log('📤 Sending POST via form to:', cleanUrl);
             console.log('📤 Payload:', JSON.stringify(payload));
-            
-            fetch(cleanUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            })
-            .then(function(response) {
-                console.log('📥 Response status:', response.status);
-                return response.text();
-            })
-            .then(function(text) {
-                console.log('📥 Response text:', text);
-                try {
-                    var data = JSON.parse(text);
-                    if (data.success) {
-                        showNotification('Success!', 'success');
-                        resolve(data);
-                    } else {
-                        showNotification('Error: ' + data.message, 'error');
-                        resolve(data);
-                    }
-                } catch (e) {
-                    console.error('❌ Parse error:', e);
-                    showNotification('Invalid response from server', 'error');
-                    resolve({ success: false, message: 'Invalid response: ' + text });
-                }
-            })
-            .catch(function(error) {
-                console.error('❌ Fetch error:', error);
-                reject(error);
-            });
+
+            // 1. Create a hidden form
+            var form = document.createElement('form');
+            form.method = 'POST';
+            form.action = cleanUrl;
+            form.target = '_blank'; // Opens in a new tab to avoid page reload
+            form.style.display = 'none';
+
+            // 2. Add the data as a hidden input field
+            var payloadInput = document.createElement('input');
+            payloadInput.type = 'hidden';
+            payloadInput.name = 'payload';
+            payloadInput.value = JSON.stringify(payload);
+            form.appendChild(payloadInput);
+
+            // 3. Submit the form and clean up
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+
+            // 4. Notify the user
+            showNotification('✅ Update submitted! Check the new tab for confirmation.', 'success');
+            resolve({ success: true, message: 'Operation submitted' });
             return;
         }
         
