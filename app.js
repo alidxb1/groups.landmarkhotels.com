@@ -30,7 +30,13 @@ let state = {
 document.addEventListener('DOMContentLoaded', function() {
     loadSettings();
     populateMonthFilter();
-    
+
+    // ✅ Test connection on load
+    setTimeout(function() {
+        testConnection();
+    }, 2000);
+});
+
     // Check if already logged in
     var savedSession = sessionStorage.getItem('lgt_session');
     if (savedSession === 'true') {
@@ -282,6 +288,33 @@ function callApi(action, params, method) {
         document.head.appendChild(script);
     });
 }
+
+function testConnection() {
+    console.log('🔍 Testing connection...');
+    var apiUrl = state.settings.webAppUrl || sessionStorage.getItem('lgt_api_url');
+    console.log('🔍 API URL:', apiUrl);
+    
+    callApi('testConnection')
+        .then(function(data) {
+            console.log('🔍 Test result:', data);
+            if (data && data.success) {
+                showNotification('✅ Connection successful!', 'success');
+                document.getElementById('backendStatus').textContent = 'Connected ✅';
+                document.getElementById('backendStatus').parentElement.querySelector('.fa-circle').style.color = '#48BB78';
+                loadDashboard();
+                loadGroups();
+            } else {
+                showNotification('❌ Connection failed: ' + (data?.message || 'Unknown error'), 'error');
+                document.getElementById('backendStatus').textContent = 'Failed ❌';
+            }
+        })
+        ['catch'](function(error) {
+            console.error('❌ Test error:', error);
+            showNotification('❌ Connection error: ' + error.message, 'error');
+            document.getElementById('backendStatus').textContent = 'Error ❌';
+        });
+}
+
 // ============================================================
 // DASHBOARD
 // ============================================================
