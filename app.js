@@ -179,14 +179,20 @@ function callApi(action, params, method) {
             return;
         }
         
-        var cleanUrl = apiUrl.replace(/\/$/, '');
+        // ============================================================
+        // 1. DEFINE CALLBACK NAME FIRST
+        // ============================================================
         var callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         
         // ============================================================
-        // POST REQUESTS (Add, Update, Delete)
+        // 2. CLEAN THE URL
+        // ============================================================
+        var cleanUrl = apiUrl.replace(/\/$/, '');
+        
+        // ============================================================
+        // 3. POST REQUESTS (Add, Update, Delete)
         // ============================================================
         if (method === 'POST') {
-            // Build the payload - action MUST be at the top level
             var payload = {
                 action: action,
                 groupId: params.groupId || null,
@@ -196,7 +202,6 @@ function callApi(action, params, method) {
             console.log('📤 Sending POST to:', cleanUrl);
             console.log('📤 Payload:', JSON.stringify(payload));
             
-            // Use fetch
             fetch(cleanUrl, {
                 method: 'POST',
                 headers: {
@@ -228,7 +233,6 @@ function callApi(action, params, method) {
             })
             .catch(function(error) {
                 console.error('❌ Fetch error:', error);
-                // Fallback: form submission
                 try {
                     var form = document.createElement('form');
                     form.method = 'POST';
@@ -263,10 +267,11 @@ function callApi(action, params, method) {
         }
         
         // ============================================================
-        // GET REQUESTS (Dashboard, Groups, AI extraction) - Use JSONP
+        // 4. GET REQUESTS - Build URL with callback
         // ============================================================
         var url = cleanUrl + '?action=' + encodeURIComponent(action) + '&callback=' + encodeURIComponent(callbackName);
         
+        // Add additional parameters
         Object.keys(params).forEach(function(key) {
             if (key !== 'action' && key !== 'callback') {
                 if (typeof params[key] === 'object') {
