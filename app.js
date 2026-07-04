@@ -183,10 +183,10 @@ function callApi(action, params, method) {
         var cleanUrl = apiUrl.replace(/\/$/, '');
         var callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         
-        // POST REQUESTS (Add, Update, Delete) - Use FORM SUBMISSION
+        // POST REQUESTS - Use FORM SUBMISSION
 if (method === 'POST') {
     try {
-        // Build the payload
+        // Build the payload - keep it simple
         var payload = {
             action: action,
             groupId: params.groupId || null,
@@ -194,34 +194,27 @@ if (method === 'POST') {
         };
         
         console.log('📤 Sending POST via form to:', cleanUrl);
-        console.log('📤 Payload being sent:', JSON.stringify(payload));
+        console.log('📤 Payload:', JSON.stringify(payload));
         
-        // Create a hidden form
+        // Create a hidden form with the payload as a single field
         var form = document.createElement('form');
         form.method = 'POST';
         form.action = cleanUrl;
         form.target = '_blank';
         form.style.display = 'none';
         
-        // Add the data as a hidden input field
+        // Add the payload as a single field
         var payloadInput = document.createElement('input');
         payloadInput.type = 'hidden';
         payloadInput.name = 'payload';
         payloadInput.value = JSON.stringify(payload);
         form.appendChild(payloadInput);
         
-        // ALSO add individual fields for debugging
-        var debugInput = document.createElement('input');
-        debugInput.type = 'hidden';
-        debugInput.name = 'debug_action';
-        debugInput.value = action;
-        form.appendChild(debugInput);
-        
         document.body.appendChild(form);
         form.submit();
         document.body.removeChild(form);
         
-        showNotification('✅ Update submitted! Check the new tab for confirmation.', 'success');
+        showNotification('✅ Update submitted! Check the new tab.', 'success');
         resolve({ success: true, message: 'Operation submitted' });
         
     } catch (error) {
@@ -230,7 +223,8 @@ if (method === 'POST') {
         reject(new Error('Failed to send request: ' + error.message));
     }
     return;
-}        
+}
+        
         // GET REQUESTS - Use JSONP
         var url = cleanUrl + '?action=' + encodeURIComponent(action) + '&callback=' + encodeURIComponent(callbackName);
         
