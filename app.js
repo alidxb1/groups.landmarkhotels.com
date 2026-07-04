@@ -498,6 +498,7 @@ function filterGroups() {
     
     renderGroupsTable(filtered);
 }
+
 // ============================================================
 // POPULATE MONTH FILTER - DYNAMIC (Next 12 Months)
 // ============================================================
@@ -507,7 +508,11 @@ function populateMonthFilter() {
     if (!select) return;
     
     // Keep the "All Months" option
-    select.innerHTML = '<option value="All">All Months</option>';
+    var allOption = document.createElement('option');
+    allOption.value = 'All';
+    allOption.textContent = 'All Months';
+    select.innerHTML = '';
+    select.appendChild(allOption);
     
     var now = new Date();
     var currentMonth = now.getMonth();
@@ -518,7 +523,6 @@ function populateMonthFilter() {
     var startMonth = currentMonth - 6;
     var startYear = currentYear;
     
-    // Adjust if we go into previous year
     if (startMonth < 0) {
         startMonth += 12;
         startYear -= 1;
@@ -527,13 +531,11 @@ function populateMonthFilter() {
     var endMonth = currentMonth + 12;
     var endYear = currentYear;
     
-    // Adjust if we go into next year
     if (endMonth >= 12) {
         endMonth -= 12;
         endYear += 1;
     }
     
-    // Loop through months
     var month = startMonth;
     var year = startYear;
     
@@ -541,33 +543,30 @@ function populateMonthFilter() {
         var monthKey = year + '-' + String(month + 1).padStart(2, '0');
         var monthLabel = monthNames[month] + ' ' + year;
         
-        // Highlight current month
-        var isCurrentMonth = (month === currentMonth && year === currentYear);
         var option = document.createElement('option');
         option.value = monthKey;
-        option.textContent = monthLabel + (isCurrentMonth ? ' (Current)' : '');
+        option.textContent = monthLabel;
         
         // Auto-select current month
-        if (isCurrentMonth) {
+        if (month === currentMonth && year === currentYear) {
+            option.textContent = monthLabel + ' (Current)';
             option.selected = true;
         }
         
         select.appendChild(option);
         
-        // Move to next month
         month++;
         if (month >= 12) {
             month = 0;
             year++;
         }
         
-        // Stop when we reach the end
         if (year > endYear || (year === endYear && month > endMonth)) {
             break;
         }
     }
     
-    console.log('📅 Month filter populated with ' + select.options.length + ' months');
+    console.log('📅 Month filter populated with ' + (select.options.length - 1) + ' months');
 }
 function refreshGroups() {
     loadGroups();
