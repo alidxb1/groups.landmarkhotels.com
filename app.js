@@ -184,33 +184,46 @@ function callApi(action, params, method) {
         var callbackName = 'jsonp_callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         
         // POST REQUESTS (Add, Update, Delete)
-                // POST REQUESTS (Add, Update, Delete) - Use FORM SUBMISSION to bypass CORS
         if (method === 'POST') {
-            console.log('📤 Sending POST via form to:', cleanUrl);
-            console.log('📤 Payload:', JSON.stringify(payload));
-
-            // 1. Create a hidden form
-            var form = document.createElement('form');
-            form.method = 'POST';
-            form.action = cleanUrl;
-            form.target = '_blank'; // Opens in a new tab to avoid page reload
-            form.style.display = 'none';
-
-            // 2. Add the data as a hidden input field
-            var payloadInput = document.createElement('input');
-            payloadInput.type = 'hidden';
-            payloadInput.name = 'payload';
-            payloadInput.value = JSON.stringify(payload);
-            form.appendChild(payloadInput);
-
-            // 3. Submit the form and clean up
-            document.body.appendChild(form);
-            form.submit();
-            document.body.removeChild(form);
-
-            // 4. Notify the user
-            showNotification('✅ Update submitted! Check the new tab for confirmation.', 'success');
-            resolve({ success: true, message: 'Operation submitted' });
+            try {
+                // 1. DEFINE payload FIRST
+                var payload = {
+                    action: action,
+                    groupId: params.groupId || null,
+                    data: params.data || params
+                };
+                
+                console.log('📤 Sending POST via form to:', cleanUrl);
+                console.log('📤 Payload:', JSON.stringify(payload));
+                
+                // 2. Create a hidden form
+                var form = document.createElement('form');
+                form.method = 'POST';
+                form.action = cleanUrl;
+                form.target = '_blank';
+                form.style.display = 'none';
+                
+                // 3. Add the data as a hidden input field
+                var payloadInput = document.createElement('input');
+                payloadInput.type = 'hidden';
+                payloadInput.name = 'payload';
+                payloadInput.value = JSON.stringify(payload);
+                form.appendChild(payloadInput);
+                
+                // 4. Submit the form and clean up
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
+                
+                // 5. Notify the user
+                showNotification('✅ Update submitted! Check the new tab for confirmation.', 'success');
+                resolve({ success: true, message: 'Operation submitted' });
+                
+            } catch (error) {
+                console.error('❌ Form submission error:', error);
+                showNotification('Failed: ' + error.message, 'error');
+                reject(new Error('Failed to send request: ' + error.message));
+            }
             return;
         }
         
@@ -263,7 +276,6 @@ function callApi(action, params, method) {
         document.head.appendChild(script);
     });
 }
-
 // ============================================================
 // CONNECTION TEST
 // ============================================================
