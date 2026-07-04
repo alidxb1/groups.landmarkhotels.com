@@ -186,7 +186,7 @@ function callApi(action, params, method) {
         // POST REQUESTS (Add, Update, Delete)
         // ============================================================
         if (method === 'POST') {
-            // Build the payload - IMPORTANT: action must be at the top level
+            // Build the payload - action MUST be at the top level
             var payload = {
                 action: action,
                 groupId: params.groupId || null,
@@ -196,7 +196,7 @@ function callApi(action, params, method) {
             console.log('📤 Sending POST to:', cleanUrl);
             console.log('📤 Payload:', JSON.stringify(payload));
             
-            // Use fetch with proper CORS
+            // Use fetch
             fetch(cleanUrl, {
                 method: 'POST',
                 headers: {
@@ -228,7 +228,7 @@ function callApi(action, params, method) {
             })
             .catch(function(error) {
                 console.error('❌ Fetch error:', error);
-                // Fallback: try JSONP with POST
+                // Fallback: form submission
                 try {
                     var form = document.createElement('form');
                     form.method = 'POST';
