@@ -464,8 +464,9 @@ function filterGroups() {
     var searchTerm = document.getElementById('searchGroups').value.toLowerCase();
     var statusFilter = document.getElementById('filterStatus').value;
     var hotelFilter = document.getElementById('filterHotel').value;
+    var monthFilter = document.getElementById('filterMonth').value;
     
-    var filtered = state.groups.slice(); // Copy array
+    var filtered = state.groups.slice();
     
     if (searchTerm) {
         filtered = filtered.filter(function(g) {
@@ -486,9 +487,16 @@ function filterGroups() {
         filtered = filtered.filter(function(g) { return g['Hotel'] === hotelFilter; });
     }
     
+    // ✅ ADD MONTH FILTER
+    if (monthFilter !== 'All') {
+        filtered = filtered.filter(function(g) {
+            var checkIn = g['Check-In'] || '';
+            return checkIn.startsWith(monthFilter);
+        });
+    }
+    
     renderGroupsTable(filtered);
 }
-
 function refreshGroups() {
     loadGroups();
     showNotification('Groups refreshed', 'success');
