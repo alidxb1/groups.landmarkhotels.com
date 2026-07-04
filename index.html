@@ -170,38 +170,36 @@
                     </div>
                 </section>
 
-                <!-- Groups Section -->
-                <section id="section-groups" class="section">
-                    <h2><i class="fas fa-users"></i> All Groups</h2>
-                    <div class="toolbar">
-                        <div class="toolbar-left">
-                            <input type="text" id="searchGroups" placeholder="Search groups..." oninput="filterGroups()">
-                            <select id="filterStatus" onchange="filterGroups()">
-                                <option value="All">All Status</option>
-                                <option value="Inquiry">Inquiry</option>
-                                <option value="Offered">Offered</option>
-                                <option value="Tentative">Tentative</option>
-                                <option value="Confirmed">Confirmed</option>
-                                <option value="Cancelled">Cancelled</option>
-                                <option value="Lost">Lost</option>
-                            </select>
-                            <select id="filterHotel" onchange="filterGroups()">
-                                <option value="All">All Hotels</option>
-                            </select>
-                            <!-- ✅ MONTH FILTER - CORRECTLY PLACED IN TOOLBAR -->
-                           <select id="filterMonth" onchange="filterGroups()">
-                            <option value="All">All Months</option>
-                            </select>
-                        </div>
-                        <div class="toolbar-right">
-                            <button onclick="exportData()" class="btn-primary btn-sm">
-                                <i class="fas fa-file-excel"></i> Export Excel
-                            </button>
-                            <button onclick="refreshGroups()" class="btn-secondary btn-sm">
-                                <i class="fas fa-sync"></i> Refresh
-                            </button>
-                        </div>
-                    </div>
+               <!-- Groups Section - Toolbar -->
+<div class="toolbar">
+    <div class="toolbar-left">
+        <input type="text" id="searchGroups" placeholder="Search groups..." oninput="filterGroups()">
+        <select id="filterStatus" onchange="filterGroups()">
+            <option value="All">All Status</option>
+            <option value="Inquiry">Inquiry</option>
+            <option value="Offered">Offered</option>
+            <option value="Tentative">Tentative</option>
+            <option value="Confirmed">Confirmed</option>
+            <option value="Cancelled">Cancelled</option>
+            <option value="Lost">Lost</option>
+        </select>
+        <select id="filterHotel" onchange="filterGroups()">
+            <option value="All">All Hotels</option>
+        </select>
+        <!-- ✅ DYNAMIC MONTH FILTER - EMPTY (populated by JavaScript) -->
+        <select id="filterMonth" onchange="filterGroups()">
+            <option value="All">All Months</option>
+        </select>
+    </div>
+    <div class="toolbar-right">
+        <button onclick="exportData()" class="btn-primary btn-sm">
+            <i class="fas fa-file-excel"></i> Export Excel
+        </button>
+        <button onclick="refreshGroups()" class="btn-secondary btn-sm">
+            <i class="fas fa-sync"></i> Refresh
+        </button>
+    </div>
+</div>
                     <div class="table-container" id="groupsTableContainer">
                         <table id="groupsTable">
                             <thead>
